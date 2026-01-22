@@ -62,7 +62,7 @@ const Footer = () => {
               type="email"
               placeholder="Your email address"
               required
-              className="w-full sm:w-auto px-4 py-2 rounded-md bg-grey-700 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-600"
+              className="w-full sm:w-auto px-4 py-2 rounded-md bg-gray-500 text-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-600"
             />
             <button
               type="submit"
@@ -74,11 +74,10 @@ const Footer = () => {
         </div>
       </div>
 
-      <div className="mt-12 pt-8 border-t border-gray-700 text-center">
-        <p className="text-gray-400 text-sm">
-          Copyright ©2026 DevSoko. All rights reserved.
-        </p>
-      </div>
+       <div className="mt-12 pt-8 border-t border-gray-700 text-center">
+          <p className="text-gray-400 text-sm">© {new Date().getFullYear()} DevSoko. All rights reserved.</p>
+         
+        </div>
     </footer>
   );
 };
