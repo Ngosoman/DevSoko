@@ -11,9 +11,14 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+import os
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Load environment variables from a .env file at the project root
+load_dotenv(BASE_DIR / '.env')
 
 
 # Quick-start development settings - unsuitable for production
@@ -124,7 +129,7 @@ STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # M-Pesa settings
-MPESA_CONSUMER_KEY = 'your_consumer_key_here'
-MPESA_CONSUMER_SECRET = 'your_consumer_secret_here'
-MPESA_SHORTCODE = 'your_shortcode_here'
-MPESA_PASSKEY = 'your_passkey_here'
+MPESA_CONSUMER_KEY = os.getenv('MPESA_CONSUMER_KEY', 'your_consumer_key_here')
+MPESA_CONSUMER_SECRET = os.getenv('MPESA_CONSUMER_SECRET', 'your_consumer_secret_here')
+MPESA_SHORTCODE = os.getenv('MPESA_SHORTCODE', 'your_shortcode_here')
+MPESA_PASSKEY = os.getenv('MPESA_PASSKEY', 'your_passkey_here')

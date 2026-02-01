@@ -19,7 +19,7 @@ from decimal import Decimal
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def stk_push(request):
-    print("Received STK push request:", request.data)  # <-- This will show in your backend terminal
+    print("Received STK push request:", request.data)  # <-- This will show in backend terminal
     data = request.data.copy()
     data.pop('product_id', None)  # Remove product_id as it's not needed for MpesaRequest
     data['amount'] = Decimal(str(data['amount']))
