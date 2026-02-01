@@ -129,7 +129,13 @@ STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # M-Pesa settings
-MPESA_CONSUMER_KEY = os.getenv('MPESA_CONSUMER_KEY', 'your_consumer_key_here')
-MPESA_CONSUMER_SECRET = os.getenv('MPESA_CONSUMER_SECRET', 'your_consumer_secret_here')
-MPESA_SHORTCODE = os.getenv('MPESA_SHORTCODE', 'your_shortcode_here')
-MPESA_PASSKEY = os.getenv('MPESA_PASSKEY', 'your_passkey_here')
+def _env(key, default=None):
+    val = os.getenv(key, default)
+    return val.strip("'\"") if isinstance(val, str) else val
+
+MPESA_CONSUMER_KEY = _env('MPESA_CONSUMER_KEY', 'your_consumer_key_here')
+MPESA_CONSUMER_SECRET = _env('MPESA_CONSUMER_SECRET', 'your_consumer_secret_here')
+# Accept either MPESA_SHORTCODE or MPESA_SHORT_CODE in .env
+MPESA_SHORTCODE = _env('MPESA_SHORTCODE') or _env('MPESA_SHORT_CODE') or 'your_shortcode_here'
+MPESA_PASSKEY = _env('MPESA_PASSKEY', 'your_passkey_here')
+MPESA_ENVIRONMENT = _env('MPESA_ENVIRONMENT', 'sandbox')
