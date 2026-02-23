@@ -97,7 +97,7 @@ def initiate_stk_push(mpesa_request):
         "PartyA": phone,
         "PartyB": shortcode,
         "PhoneNumber": phone,
-        "CallBackURL": settings.MPESA_CALLBACK_URL,
+        "CallBackURL": _dynamic_callback_url if _dynamic_callback_url else settings.MPESA_CALLBACK_URL,
         "AccountReference": mpesa_request.account_reference,
         "TransactionDesc": mpesa_request.transaction
     }
