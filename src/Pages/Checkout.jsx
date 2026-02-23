@@ -1,27 +1,46 @@
 import React, { useState } from "react";
 import axios from "axios";
 
-const Checkout = () => {
+const Checkout = ({ project, currentUser }) => {
   const [phone, setPhone] = useState("");
-  const [amount, setAmount] = useState(10); // you can make this dynamic
+  const [amount, setAmount] = useState(project?.price || 10);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const handlePayment = async () => {
-    if (!phone || phone.length !== 12 || !phone.startsWith("254")) {
+    // Validate phone number - must start with 254 and be at least 12 digits
+    if (!phone || phone.length < 12 || !phone.startsWith("254")) {
       alert("Please enter a valid Safaricom phone number in the format 2547XXXXXXXX");
       return;
     }
 
+    if (!amount || amount <= 0) {
+      alert("Please enter a valid amount");
+      return;
+    }
+
+    setIsProcessing(true);
+
     try {
-      const res = await axios.post("/api/stk-push", {
-  phone: "2547XXXXXXX", // Make sure it's in correct format
-  amount: 100
-});
+      const res = await axios.post("/api/mpesa/stk-push/", {
+        phone_number: phone,
+        amount: parseFloat(amount),
+        account_reference: project?.id?.toString() || "DEV001",
+        transaction: `Purchase of ${project?.title || "DevSoko Item"}`
+      });
 
       alert("STK Push Sent! Check your phone to complete payment.");
       console.log("Payment response:", res.data);
+      
+      // Optionally save the sale after successful STK push
+      if (res.data.checkout_request_id) {
+        saveSale(res.data.checkout_request_id);
+      }
     } catch (err) {
-      console.error(" Payment error:", err);
-      alert("Something went wrong during payment. Try again.");
+      console.error("Payment error:", err);
+      const errorMessage = err.response?.data?.detail || err.response?.data?.error || "Something went wrong during payment. Try again.";
+      alert(errorMessage);
+    } finally {
+      setIsProcessing(false);
     }
   };
 

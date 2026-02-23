@@ -17,8 +17,8 @@ from dotenv import load_dotenv
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Load environment variables from a .env file at the project root
-load_dotenv(BASE_DIR / '.env')
+# Load environment variables from a .env file at the Backend folder
+load_dotenv(BASE_DIR.parent / '.env')
 
 
 # Quick-start development settings - unsuitable for production
@@ -30,7 +30,7 @@ SECRET_KEY = 'django-insecure-l92fj+*zkduqfh^=f8$%@9vkhnkl==v$!r6fl68!w*z9i!ug0y
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['localhost', '127.0.0.1']
 
 
 # Application definition
@@ -42,11 +42,13 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'corsheaders',
     'payments',
     'rest_framework',
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -55,6 +57,15 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+# CORS settings - allow frontend to communicate with backend
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+    "http://localhost:3000",
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:3000",
+]
+CORS_ALLOW_CREDENTIALS = True
 
 ROOT_URLCONF = 'DevBackend.urls'
 
@@ -139,3 +150,4 @@ MPESA_CONSUMER_SECRET = _env('MPESA_CONSUMER_SECRET', 'your_consumer_secret_here
 MPESA_SHORTCODE = _env('MPESA_SHORTCODE') or _env('MPESA_SHORT_CODE') or 'your_shortcode_here'
 MPESA_PASSKEY = _env('MPESA_PASSKEY', 'your_passkey_here')
 MPESA_ENVIRONMENT = _env('MPESA_ENVIRONMENT', 'sandbox')
+MPESA_CALLBACK_URL = _env('MPESA_CALLBACK_URL', 'http://127.0.0.1:8000/api/mpesa/callback/')
