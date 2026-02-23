@@ -1,6 +1,7 @@
 from .models import MpesaRequest, MpesaResponse
 
 class MpesaRequestSerializer(serializers.ModelSerializer):
+    
     class Meta:
         model = MpesaRequest
         fields = ['phone_number', 'amount', 'account_reference', 'transaction']
