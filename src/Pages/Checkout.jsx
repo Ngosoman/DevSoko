@@ -67,7 +67,7 @@ const Checkout = ({ project, currentUser }) => {
       
       // Optionally save the sale after successful STK push
       if (res.data.checkout_request_id) {
-        saveSale(res.data.checkout_request_id);
+        saveSale();
       }
     } catch (err) {
       console.error("Payment error:", err);
@@ -79,22 +79,22 @@ const Checkout = ({ project, currentUser }) => {
   };
 
 
-  // In your Checkout.jsx (after successful "payment")
-const saveSale = () => {
-  const sales = JSON.parse(localStorage.getItem('sales')) || [];
+  // Save sale after successful payment
+  const saveSale = () => {
+    const sales = JSON.parse(localStorage.getItem('sales')) || [];
 
-  const newSale = {
-    projectId: project.id,
-    projectTitle: project.title,
-    buyerEmail: currentUser.email,
-    sellerEmail: project.sellerEmail,
-    date: new Date().toLocaleString(),
-    amount: project.price
+    const newSale = {
+      projectId: project.id,
+      projectTitle: project.title,
+      buyerEmail: currentUser.email,
+      sellerEmail: project.sellerEmail,
+      date: new Date().toLocaleString(),
+      amount: project.price
+    };
+
+    sales.push(newSale);
+    localStorage.setItem('sales', JSON.stringify(sales));
   };
-
-  sales.push(newSale);
-  localStorage.setItem('sales', JSON.stringify(sales));
-};
 
   
   return (
