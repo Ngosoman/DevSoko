@@ -1,1 +1,1 @@
-web: bash /opt/render/project/src/Backend/build.sh
+web: sh -c "cd /opt/render/project/src/Backend && gunicorn DevBackend.wsgi:application --bind 0.0.0.0:10000"
