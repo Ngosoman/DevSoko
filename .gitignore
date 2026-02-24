@@ -22,3 +22,39 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Python - Virtual environments
+venv/
+env/
+Backend/venv/
+Backend/env/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.eggs/
+build/
+develop-eggs/
+
+# Database
+*.sqlite3
+db.sqlite3
+
+# Environment files
+.env
+
+# Django
+*.log
+staticfiles/
+media/
+
+# Backend specific
+Backend/__pycache__/
+Backend/DevBackend/__pycache__/
+
+# Frontend specific
+Frontend/node_modules/
