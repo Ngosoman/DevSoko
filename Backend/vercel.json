@@ -1,0 +1,15 @@
+{
+  "builds": [
+    {
+      "src": "DevBackend/wsgi.py",
+      "use": "@vercel/python",
+      "config": { "maxDuration": 60 }
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "DevBackend/wsgi.py"
+    }
+  ]
+}
