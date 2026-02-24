@@ -1,1 +1,1 @@
-web: cd Backend && gunicorn DevBackend.wsgi --log-file -
+web: cd Backend && gunicorn DevBackend.DevBackend.wsgi:application --log-file -
