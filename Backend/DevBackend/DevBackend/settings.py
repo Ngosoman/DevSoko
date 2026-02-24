@@ -156,4 +156,4 @@ MPESA_CONSUMER_SECRET = _env('MPESA_CONSUMER_SECRET', 'your_consumer_secret_here
 MPESA_SHORTCODE = _env('MPESA_SHORTCODE') or _env('MPESA_SHORT_CODE') or 'your_shortcode_here'
 MPESA_PASSKEY = _env('MPESA_PASSKEY', 'your_passkey_here')
 MPESA_ENVIRONMENT = _env('MPESA_ENVIRONMENT', 'sandbox')
-MPESA_CALLBACK_URL = _env('MPESA_CALLBACK_URL', 'http://127.0.0.1:8000/api/mpesa/callback/')
+MPESA_CALLBACK_URL = _env('MPESA_CALLBACK_URL', 'https://devsoko.onrender.com/api/mpesa/callback/')
