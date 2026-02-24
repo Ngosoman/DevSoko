@@ -155,5 +155,21 @@ MPESA_CONSUMER_SECRET = _env('MPESA_CONSUMER_SECRET', 'your_consumer_secret_here
 # Accept either MPESA_SHORTCODE or MPESA_SHORT_CODE in .env
 MPESA_SHORTCODE = _env('MPESA_SHORTCODE') or _env('MPESA_SHORT_CODE') or 'your_shortcode_here'
 MPESA_PASSKEY = _env('MPESA_PASSKEY', 'your_passkey_here')
-MPESA_ENVIRONMENT = _env('MPESA_ENVIRONMENT', 'sandbox')
+MPESA_ENVIRONMENT = _env('MPESA_ENVIRONMENT', 'production')  # Changed to production
 MPESA_CALLBACK_URL = _env('MPESA_CALLBACK_URL', 'https://devsoko.onrender.com/api/mpesa/callback/')
+
+# M-Pesa API URLs based on environment
+if MPESA_ENVIRONMENT == 'production':
+    MPESA_AUTH_URL = 'https://api.safaricom.co.ke/oauth/v1/generate'
+    MPESA_STK_PUSH_URL = 'https://api.safaricom.co.ke/mpesa/stkpush/v1/processrequest'
+    MPESA_STK_PUSH_QUERY_URL = 'https://api.safaricom.co.ke/mpesa/stkpushquery/v1/query'
+    MPESA_C2B_URL = 'https://api.safaricom.co.ke/mpesa/c2b/v1/registerurl'
+    MPESA_B2C_URL = 'https://api.safaricom.co.ke/mpesa/b2c/v1/paymentrequest'
+    MPESA_B2B_URL = 'https://api.safaricom.co.ke/mpesa/b2b/v1/paymentrequest'
+else:
+    MPESA_AUTH_URL = 'https://sandbox.safaricom.co.ke/oauth/v1/generate'
+    MPESA_STK_PUSH_URL = 'https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest'
+    MPESA_STK_PUSH_QUERY_URL = 'https://sandbox.safaricom.co.ke/mpesa/stkpushquery/v1/query'
+    MPESA_C2B_URL = 'https://sandbox.safaricom.co.ke/mpesa/c2b/v1/registerurl'
+    MPESA_B2C_URL = 'https://sandbox.safaricom.co.ke/mpesa/b2c/v1/paymentrequest'
+    MPESA_B2B_URL = 'https://sandbox.safaricom.co.ke/mpesa/b2b/v1/paymentrequest'

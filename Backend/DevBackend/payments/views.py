@@ -63,13 +63,15 @@ def initiate_stk_push(mpesa_request):
             'ErrorMessage': 'Mpesa credentials not configured or invalid'
         }
     
-    api_url = "https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest"
+    # Use dynamic URL from settings based on environment
+    api_url = settings.MPESA_STK_PUSH_URL
     headers = {
         "Authorization": f"Bearer {access_token}",
         "Content-Type": "application/json"
     }
     
     print("Access Token:", access_token[:20] + "...")  # Debugging line
+    print("Using M-Pesa API URL:", api_url)  # Debugging line
     
     # Format phone number properly
     phone = mpesa_request.phone_number
@@ -123,6 +125,7 @@ def initiate_stk_push(mpesa_request):
             'ResponseDescription': 'Invalid response from Mpesa',
             'ErrorMessage': str(e)
         }
+
 def get_access_token():
     consumer_key = settings.MPESA_CONSUMER_KEY
     consumer_secret = settings.MPESA_CONSUMER_SECRET
@@ -132,7 +135,9 @@ def get_access_token():
         print("ERROR: Mpesa credentials not configured in .env file")
         return None
     
-    api_url = "https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials"
+    # Use dynamic URL from settings based on environment
+    api_url = settings.MPESA_AUTH_URL
+    
     try:
         response = requests.get(api_url, auth=(consumer_key, consumer_secret), timeout=30)
         response_data = response.json()
@@ -153,6 +158,7 @@ def get_access_token():
     except ValueError as e:
         print(f"ERROR: Failed to parse response: {str(e)}")
         return None
+
 def generate_password():
     shortcode = settings.MPESA_SHORTCODE
     passkey = settings.MPESA_PASSKEY
@@ -228,7 +234,8 @@ def initiate_stk_push_with_dynamic_callback(mpesa_request):
             'ErrorMessage': 'Mpesa credentials not configured or invalid'
         }
     
-    api_url = "https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest"
+    # Use dynamic URL from settings based on environment
+    api_url = settings.MPESA_STK_PUSH_URL
     headers = {
         "Authorization": f"Bearer {access_token}",
         "Content-Type": "application/json"
