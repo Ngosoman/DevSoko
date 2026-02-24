@@ -34,7 +34,7 @@ SECRET_KEY = 'django-insecure-l92fj+*zkduqfh^=f8$%@9vkhnkl==v$!r6fl68!w*z9i!ug0y
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'https://dev-soko.vercel.app/', 'wet-jars-smell.loca.lt', '*.loca.lt']
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', 'devsoko.onrender.com', '*.onrender.com', 'dev-soko.vercel.app', '*.vercel.app', 'wet-jars-smell.loca.lt', '*.loca.lt']
 
 
 # Application definition
@@ -68,6 +68,8 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:5173",
     "http://127.0.0.1:3000",
+    "https://dev-soko.vercel.app",
+    "https://*.vercel.app",
 ]
 CORS_ALLOW_CREDENTIALS = True
 
