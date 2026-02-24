@@ -1,1 +1,1 @@
-web: cd Backend && gunicorn DevBackend.DevBackend.wsgi:application --log-file -
+web: cd /opt/render/project/src/Backend/DevBackend && python -m gunicorn DevBackend.wsgi:application --bind 0.0.0.0:10000 --log-file -
