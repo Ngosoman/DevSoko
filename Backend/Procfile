@@ -1,1 +1,1 @@
-web: gunicorn --chdir /opt/render/project/src/Backend/DevBackend --env DJANGO_SETTINGS_MODULE=DevBackend.settings --env PYTHONPATH=/opt/render/project/src/Backend/DevBackend DevBackend.wsgi:application --log-file -
+web: bash /opt/render/project/src/Backend/build.sh
