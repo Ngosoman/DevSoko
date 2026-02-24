@@ -1,1 +1,1 @@
-web: gunicorn DevBackend.wsgi --log-file - --chdir /opt/render/project/src/Backend
+web: gunicorn --chdir /opt/render/project/src/Backend/DevBackend DevBackend.wsgi:application --log-file -
