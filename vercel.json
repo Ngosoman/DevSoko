@@ -8,7 +8,7 @@
   "routes": [
     {
       "src": "/api/(.*)",
-      "destination": "https://devsoko.onrender.com/api/$1"
+      "dest": "https://devsoko.onrender.com/api/$1"
     },
     {
       "handle": "filesystem"
