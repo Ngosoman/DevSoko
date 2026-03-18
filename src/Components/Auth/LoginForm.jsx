@@ -142,13 +142,11 @@ const LoginForm = ({ darkMode }) => {
         </button>
       </div>
 
-      <div className="relative">
+      <div className="relative my-8">
         <div className="absolute inset-0 flex items-center">
-          <div className={`w-full border-t border-slate-200 dark:border-slate-600`}></div>
+          <div className={`w-full h-px bg-gradient-to-r from-transparent via-slate-300 dark:via-slate-600 to-transparent`}></div>
         </div>
-        <div className={`relative flex justify-center text-xs uppercase font-bold tracking-wider ${
-          darkMode ? 'text-slate-500' : 'text-slate-400'
-        }`}>
+        <div className={`relative mx-auto bg-white/80 dark:bg-slate-900/80 px-6 py-2 text-xs uppercase font-bold tracking-wider text-slate-500 dark:text-slate-400 text-center w-fit`}>
           Or sign in with
         </div>
       </div>
