@@ -72,6 +72,27 @@ button:focus-visible {
 @tailwind utilities;
 
 :root {
-  --color-primary: 219 39 74; /* Tailwind orange-500 hsl approx, warm coral */
+  --color-primary: 219 39 74;
   --color-primary-50: 254 252 232;
+  --color-bg-dark: 17 24 39;
+  --color-card-dark: 30 41 59;
+  --color-text-dark: 243 244 246;
+}
+
+/* Dark mode */
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+  }
+}
+
+/* Login animations */
+@keyframes pulse-gradient {
+  0%, 100% { box-shadow: 0 0 20px rgb(var(--color-primary)/0.5); }
+  50% { boxShadow: 0 0 40px rgb(var(--color-primary)/0.8); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -468px 0; }
+  100% { background-position: 468px 0; }
 }
