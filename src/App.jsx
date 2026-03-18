@@ -16,11 +16,18 @@ import BuyerDashboard from "./Components/Buyer/BuyerDashboard";
 import ContactPage from "./Pages/ContactPage";
 
 
+import { useLocation } from "react-router-dom";
+import useUserRole from "./hooks/useUserRole";
+
 function App() {
+  const location = useLocation();
+  const { role } = useUserRole();
+  const hideNavbar = location.pathname.startsWith('/admin-') && role === "admin";
+
   return (
     
       <>
-        <Navbar />
+        {!hideNavbar && <Navbar />}
        
       <Routes>
         <Route path="/" element={<Home />} />
