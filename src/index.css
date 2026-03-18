@@ -70,3 +70,8 @@ button:focus-visible {
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+:root {
+  --color-primary: 219 39 74; /* Tailwind orange-500 hsl approx, warm coral */
+  --color-primary-50: 254 252 232;
+}
