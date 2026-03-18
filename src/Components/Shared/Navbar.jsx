@@ -1,15 +1,14 @@
 import { useEffect, useState } from "react";
 import { NavLink, Link, useNavigate } from "react-router-dom";
-import { auth, db } from "../../firebase";
+import { auth } from "../../firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
 import useUserRole from "../../hooks/useUserRole";
 
 const Navbar = () => {
   const [user, setUser] = useState(null);
   const [scrolled, setScrolled] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
-  const { role, loading: roleLoading } = useUserRole();
+  const { role } = useUserRole();
   const navigate = useNavigate();
 
   // Keep legacy user listener for backward compat
