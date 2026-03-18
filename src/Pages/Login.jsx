@@ -85,7 +85,7 @@ const Login = () => {
           darkMode ? 'bg-slate-900/90 backdrop-blur-3xl border border-slate-700/50 shadow-2xl' : 'bg-white/80 backdrop-blur-3xl border border-white/50 shadow-2xl'
         } rounded-3xl p-10`}>
           <div className="text-center space-y-4">
-            <div className="mx-auto w-24 h-24 bg-gradient-to-r from-primary-500 to-orange-500 rounded-3xl flex items-center justify-center shadow-2xl animate-glow">
+<div className="mx-auto w-24 h-24 bg-gradient-to-r from-primary-500 to-orange-500 rounded-3xl flex items-center justify-center shadow-2xl animate-glow login-font">
               <svg className="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
               </svg>
@@ -104,7 +104,7 @@ const Login = () => {
           <LoginForm darkMode={darkMode} />
           <div className="pt-8 border-t border-slate-200/50 dark:border-slate-700/50">
             <p className={`text-xs text-center ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-              © 2024 DevSoko. Built for creators.
+              © 2026 DevSoko. Built for creators.
             </p>
           </div>
         </div>
