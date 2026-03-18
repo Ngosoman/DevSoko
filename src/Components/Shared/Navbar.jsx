@@ -3,28 +3,19 @@ import { NavLink, Link, useNavigate } from "react-router-dom";
 import { auth, db } from "../../firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
+import useUserRole from "../../hooks/useUserRole";
 
 const Navbar = () => {
   const [user, setUser] = useState(null);
-  const [role, setRole] = useState(null);
   const [scrolled, setScrolled] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const { role, loading: roleLoading } = useUserRole();
   const navigate = useNavigate();
 
-  // Handle authentication
+  // Keep legacy user listener for backward compat
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      if (currentUser) {
-        setUser(currentUser);
-        const docRef = doc(db, "users", currentUser.uid);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          setRole(docSnap.data().role);
-        }
-      } else {
-        setUser(null);
-        setRole(null);
-      }
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser || null);
     });
 
     return () => unsubscribe();
@@ -103,7 +94,7 @@ const Navbar = () => {
               {user ? (
                 <>
                   <NavLink
-                    to="/dashboard"
+                    to={role === "admin" ? "/admin-dashboard" : role === "seller" ? "/seller-dashboard" : "/buyer-dashboard"}
                     className={({ isActive }) =>
                       `px-4 py-2 rounded-xl font-semibold transition-all duration-300 ${
                         isActive
@@ -204,7 +195,7 @@ const Navbar = () => {
               {user ? (
                 <>
                   <NavLink
-                    to="/dashboard"
+                    to={role === "admin" ? "/admin-dashboard" : role === "seller" ? "/seller-dashboard" : "/buyer-dashboard"}
                     className={({ isActive }) =>
                       `block px-4 py-3 rounded-xl font-semibold transition-all duration-300 w-full text-left ${
                         isActive

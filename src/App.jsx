@@ -28,6 +28,7 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/upload" element={<UploadProject />} />
         <Route path="/projects" element={<ViewProjects />} />
+        <Route path="/dashboard" element={<BuyerDashboard />} />
         <Route path="/buyer-dashboard" element={<BuyerDashboard />} />
         <Route path="/seller-dashboard" element={<SellerDashboard />} />
         <Route path="/admin-login" element={<AdminLogin />} /> 

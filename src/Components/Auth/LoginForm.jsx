@@ -21,7 +21,9 @@ const LoginForm = () => {
       const userRole = userDoc.exists() ? userDoc.data().role : "buyer";
 
       // Redirect based on role
-      if (userRole === "seller") {
+      if (userRole === "admin") {
+        navigate("/admin-dashboard");
+      } else if (userRole === "seller") {
         navigate("/seller-dashboard");
       } else if (userRole === "buyer") {
         navigate("/buyer-dashboard");
