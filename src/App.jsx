@@ -17,11 +17,8 @@ import ContactPage from "./Pages/ContactPage";
 
 
 import { useLocation } from "react-router-dom";
-import useUserRole from "./hooks/useUserRole";
-
 function App() {
   const location = useLocation();
-  const { role } = useUserRole();
   const hideNavbar = location.pathname === '/admin-dashboard';
 
   return (
