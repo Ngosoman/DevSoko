@@ -22,7 +22,7 @@ import useUserRole from "./hooks/useUserRole";
 function App() {
   const location = useLocation();
   const { role } = useUserRole();
-  const hideNavbar = location.pathname.startsWith('/admin-') && role === "admin";
+  const hideNavbar = location.pathname === '/admin-dashboard';
 
   return (
     
