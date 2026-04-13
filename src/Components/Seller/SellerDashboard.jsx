@@ -1,15 +1,25 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { auth, db } from '../../firebase';
-import { onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { supabase } from '../../supabaseClient';
 import { useNavigate } from 'react-router-dom';
 import DashboardSkeleton from '../Shared/DashboardSkeleton';
 
-// Real-world storage helpers for DevSoko
-const getMyProjects = () => JSON.parse(localStorage.getItem("myProjects") || "[]");
-const getPurchases = () => JSON.parse(localStorage.getItem("purchases") || "[]");
-const saveMyProjects = (projects) => localStorage.setItem("myProjects", JSON.stringify(projects));
+// Real-world storage helpers for DevSoko - now using Supabase
+const getMyProjects = async (userId) => {
+  const { data, error } = await supabase.from('projects').select('*').eq('seller_id', userId);
+  if (error) throw error;
+  return data || [];
+};
+
+const getPurchases = async (userId) => {
+  const { data, error } = await supabase.from('purchases').select('*, projects(*)').eq('seller_id', userId);
+  if (error) throw error;
+  return data || [];
+};
+
+const saveMyProjects = async (projects) => {
+  // Not needed anymore, as we save directly to Supabase
+};
 
 const SellerDashboard = ({ user, setUser }) => {
   const [activeTab, setActiveTab] = useState('overview');
@@ -28,7 +38,7 @@ const SellerDashboard = ({ user, setUser }) => {
     category: 'Full Stack'
   });
 
-  // Get user from Firebase if not passed as prop
+  // Get user from Supabase if not passed as prop
   useEffect(() => {
     if (user) {
       setCurrentUser(user);
@@ -36,21 +46,28 @@ const SellerDashboard = ({ user, setUser }) => {
       return;
     }
 
-    const unsubscribe = onAuthStateChanged(auth, async (authUser) => {
+    const getUser = async () => {
+      const { data: { user: authUser }, error } = await supabase.auth.getUser();
       if (authUser) {
-        // Get user data from Firestore
-        const userDoc = await getDoc(doc(db, "users", authUser.uid));
-        if (userDoc.exists()) {
-          const userData = {
-            email: authUser.email,
-            ...userDoc.data(),
-            codeCredits: userDoc.data().codeCredits || 100,
-            name: userDoc.data().name || authUser.email.split('@')[0]
-          };
-          setCurrentUser(userData);
-        } else {
-          // Fallback if user doc doesn't exist
+        // Get user data from Supabase users table
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', authUser.id)
+          .single();
+
+        if (userData) {
           setCurrentUser({
+            id: authUser.id,
+            email: authUser.email,
+            ...userData,
+            codeCredits: userData.codeCredits || 100,
+            name: userData.name || authUser.email.split('@')[0]
+          });
+        } else {
+          // Fallback
+          setCurrentUser({
+            id: authUser.id,
             email: authUser.email,
             codeCredits: 100,
             name: authUser.email.split('@')[0]
@@ -61,17 +78,29 @@ const SellerDashboard = ({ user, setUser }) => {
         // User not authenticated, redirect to login
         navigate('/login');
       }
-    });
+    };
 
-    return () => unsubscribe();
+    getUser();
   }, [user, navigate]);
 
   useEffect(() => {
-    const p = getMyProjects();
-    const s = getPurchases().filter(buy => buy.sellerEmail === currentUser.email);
-    setProjects(p);
-    setSales(s);
-  }, [currentUser.email]);
+    const fetchData = async () => {
+      try {
+        if (currentUser.id) {
+          const p = await getMyProjects(currentUser.id);
+          const s = await getPurchases(currentUser.id);
+          setProjects(p);
+          setSales(s);
+        }
+      } catch (error) {
+        console.error("Error fetching data:", error);
+      }
+    };
+
+    if (currentUser.id) {
+      fetchData();
+    }
+  }, [currentUser.id]);
 
   const stats = useMemo(() => {
     const totalSales = sales.reduce((acc, curr) => acc + Number(curr.amount || 0), 0);

@@ -1,10 +1,13 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import ProjectCard from '../Components/Project/ProjectCard';
 import ProjectCardSkeleton from '../Components/Project/ProjectCardSkeleton';
+import { supabase } from '../supabaseClient';
 
-// Reusable Storage Helper (Syncs with Seller Dashboard)
-const storage = {
-  get: (key) => JSON.parse(localStorage.getItem(key) || "[]"),
+// Reusable Storage Helper - now using Supabase
+const getAllProjects = async () => {
+  const { data, error } = await supabase.from('projects').select('*, users!seller_id(email)');
+  if (error) throw error;
+  return data || [];
 };
 
 const ViewProjects = () => {
@@ -13,13 +16,18 @@ const ViewProjects = () => {
   const [filter, setFilter] = useState('All Systems');
 
   useEffect(() => {
-    // Simulate network delay for "enticing" loading feel
-    const timer = setTimeout(() => {
-      const all = storage.get("allProjects");
-      setProjects(all);
-      setLoading(false);
-    }, 800);
-    return () => clearTimeout(timer);
+    const fetchProjects = async () => {
+      try {
+        const all = await getAllProjects();
+        setProjects(all);
+      } catch (error) {
+        console.error("Error fetching projects:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProjects();
   }, []);
   
   const categories = ['All Systems', 'Frontend', 'Backend', 'Full Stack', 'Mobile Engine', 'UI Kit', 'AI/ML Script'];

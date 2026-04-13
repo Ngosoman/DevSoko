@@ -1,7 +1,5 @@
 import { useState } from "react";
-import { auth, db } from "../../firebase";
-import { createUserWithEmailAndPassword, sendEmailVerification } from "firebase/auth";
-import { doc, setDoc } from "firebase/firestore";
+import { supabase } from "../../supabaseClient";
 import { useNavigate } from "react-router-dom";
 
 const RegisterForm = () => {
@@ -18,25 +16,25 @@ const RegisterForm = () => {
     setError("");
 
     try {
-      const userCredential = await createUserWithEmailAndPassword(
-        auth,
+      const { data, error } = await supabase.auth.signUp({
         email,
-        password
-      );
-
-      const user = userCredential.user;
-
-      // Send email verification
-      await sendEmailVerification(user);
-
-      // ✅ Save user role & email to Firestore
-      await setDoc(doc(db, "users", user.uid), {
-        email,
-        role,
-        createdAt: new Date().toISOString(),
+        password,
       });
 
-      console.log("✅ User registered and saved to Firestore.");
+      if (error) throw error;
+
+      // Save user role & email to Supabase users table
+      const { error: insertError } = await supabase
+        .from('users')
+        .insert({
+          id: data.user.id,
+          email,
+          role,
+        });
+
+      if (insertError) throw insertError;
+
+      console.log("✅ User registered and saved to Supabase.");
       alert("Registration successful! Please check your email to verify your account before logging in.");
       navigate("/login");
     } catch (err) {

@@ -1,8 +1,6 @@
 import { useState } from "react";
-import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
-import { auth, db } from "../../firebase";
+import { supabase } from "../../supabaseClient";
 import { useNavigate } from "react-router-dom";
-import { doc, getDoc, setDoc } from "firebase/firestore";
 
 const LoginForm = ({ darkMode }) => {
   const [email, setEmail] = useState("");
@@ -16,13 +14,17 @@ const LoginForm = ({ darkMode }) => {
     e.preventDefault();
     setLoading(true);
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      if (!userCredential.user.emailVerified) {
-        await auth.signOut();
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      if (error) throw error;
+      if (!data.user.email_confirmed_at) {
+        await supabase.auth.signOut();
         setError("Please verify your email before logging in.");
         return;
       }
-      await redirectByRole(userCredential.user);
+      await redirectByRole(data.user);
     } catch {
       setError("Invalid credentials. Try demo or register.");
     } finally {
@@ -33,15 +35,15 @@ const LoginForm = ({ darkMode }) => {
   const handleGoogleLogin = async () => {
     setLoading(true);
     try {
-      const provider = new GoogleAuthProvider();
-      const result = await signInWithPopup(auth, provider);
-      await setDoc(doc(db, "users", result.user.uid), {
-        role: "buyer",
-        email: result.user.email,
-        name: result.user.displayName || result.user.email.split('@')[0],
-        createdAt: new Date().toISOString()
-      }, { merge: true });
-      await redirectByRole(result.user);
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+      });
+      if (error) throw error;
+      // For OAuth, the redirect will happen, so maybe not needed here
+      // But if successful, redirect
+      if (data.user) {
+        await redirectByRole(data.user);
+      }
     } catch {
       setError("Google login failed. Try email.");
     } finally {
@@ -50,8 +52,13 @@ const LoginForm = ({ darkMode }) => {
   };
 
   const redirectByRole = async (user) => {
-    const userDoc = await getDoc(doc(db, "users", user.uid));
-    const userRole = userDoc.exists() ? userDoc.data().role : "buyer";
+    const { data, error } = await supabase
+      .from('users')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+
+    const userRole = data?.role || "buyer";
 
     if (userRole === "admin") navigate("/admin-dashboard");
     else if (userRole === "seller") navigate("/seller-dashboard");

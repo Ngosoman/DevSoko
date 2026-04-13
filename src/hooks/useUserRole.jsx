@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
-import { doc, getDoc } from "firebase/firestore";
-import { auth, db } from "../firebase";
+import { supabase } from "../supabaseClient";
 
 const useUserRole = () => {
   const [role, setRole] = useState(null);
@@ -8,16 +7,20 @@ const useUserRole = () => {
 
   useEffect(() => {
     const fetchRole = async () => {
-      const user = auth.currentUser;
+      const { data: { user }, error } = await supabase.auth.getUser();
       if (!user) {
         setLoading(false);
         return;
       }
 
-      const docRef = doc(db, "users", user.uid);
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        setRole(docSnap.data().role);
+      const { data, error: roleError } = await supabase
+        .from('users')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+
+      if (data) {
+        setRole(data.role);
       }
       setLoading(false);
     };
