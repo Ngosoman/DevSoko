@@ -33,7 +33,7 @@ const Navbar = ({ theme, toggleTheme }) => {
     : "/login";
 
   return (
-    <nav className="sticky top-0 z-50 w-full">
+    <nav className="w-full">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
         <div className="flex flex-col">
           <NavLink
