@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
+import { auth } from "../firebase";
 
 const Checkout = ({ project, currentUser }) => {
   const [phone, setPhone] = useState("");
@@ -8,15 +9,28 @@ const Checkout = ({ project, currentUser }) => {
   const [ngrokUrl, setNgrokUrl] = useState("");
   const [callbackSet, setCallbackSet] = useState(false);
 
+  const getAuthHeaders = async () => {
+    const user = auth.currentUser;
+    if (user) {
+      const token = await user.getIdToken();
+      return { Authorization: `Bearer ${token}` };
+    }
+    return {};
+  };
+
   // Check current callback URL on mount
   useEffect(() => {
-    axios.get("/api/mpesa/get-ngrok-url/")
-      .then(res => {
-        if (res.data.current_callback_url) {
-          setCallbackSet(true);
-        }
-      })
-      .catch(err => console.log("Could not get callback URL status"));
+    const fetchCallback = async () => {
+      const headers = await getAuthHeaders();
+      axios.get("/api/mpesa/get-ngrok-url/", { headers })
+        .then(res => {
+          if (res.data.current_callback_url) {
+            setCallbackSet(true);
+          }
+        })
+        .catch(err => console.log("Could not get callback URL status"));
+    };
+    fetchCallback();
   }, []);
 
   const handleSetCallbackUrl = async () => {
@@ -30,9 +44,10 @@ const Checkout = ({ project, currentUser }) => {
     const callbackUrl = `${formattedUrl}api/mpesa/callback/`;
     
     try {
+      const headers = await getAuthHeaders();
       await axios.post("/api/mpesa/set-callback-url/", {
         callback_url: callbackUrl
-      });
+      }, { headers });
       setCallbackSet(true);
       alert("Callback URL configured successfully!");
     } catch (err) {
@@ -55,12 +70,13 @@ const Checkout = ({ project, currentUser }) => {
     setIsProcessing(true);
 
     try {
+      const headers = await getAuthHeaders();
       const res = await axios.post("/api/mpesa/stk-push/", {
         phone_number: phone,
         amount: parseFloat(amount),
         account_reference: project?.id?.toString() || "DEV001",
         transaction: `Purchase of ${project?.title || "DevSoko Item"}`
-      });
+      }, { headers });
 
       alert("STK Push Sent! Check your phone to complete payment.");
       console.log("Payment response:", res.data);

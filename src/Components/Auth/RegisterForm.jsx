@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { auth, db } from "../../firebase";
-import { createUserWithEmailAndPassword } from "firebase/auth";
+import { createUserWithEmailAndPassword, sendEmailVerification } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
 
@@ -26,6 +26,9 @@ const RegisterForm = () => {
 
       const user = userCredential.user;
 
+      // Send email verification
+      await sendEmailVerification(user);
+
       // ✅ Save user role & email to Firestore
       await setDoc(doc(db, "users", user.uid), {
         email,
@@ -34,14 +37,8 @@ const RegisterForm = () => {
       });
 
       console.log("✅ User registered and saved to Firestore.");
-      // Redirect based on role
-      if (role === "seller") {
-        navigate("/seller-dashboard");
-      } else if (role === "buyer") {
-        navigate("/buyer-dashboard");
-      } else {
-        navigate("/dashboard");
-      }
+      alert("Registration successful! Please check your email to verify your account before logging in.");
+      navigate("/login");
     } catch (err) {
       console.error("Registration failed:", err.message);
       setError(err.message);

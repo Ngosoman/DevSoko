@@ -6,18 +6,20 @@ from django.shortcuts import render
 from rest_framework import status
 from rest_framework import viewsets 
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from .models import MpesaRequest, MpesaResponse, Order
 from .serializers import MpesaRequestSerializer, MpesaResponseSerializer
 from django.conf import settings
+from django_ratelimit.decorators import ratelimit
 import base64
 import requests
 from datetime import datetime
 from decimal import Decimal
 
 @api_view(['POST'])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
+@ratelimit(key='user', rate='5/m', method='POST', block=True)
 def stk_push(request):
     print("Received STK push request:", request.data)  # <-- This will show in backend terminal
     data = request.data.copy()
@@ -192,7 +194,7 @@ def mpesa_callback(request):
 _dynamic_callback_url = None
 
 @api_view(['GET'])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def get_ngrok_url(request):
     """Get current callback URL configuration"""
     return Response({
@@ -201,7 +203,7 @@ def get_ngrok_url(request):
     })
 
 @api_view(['POST'])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def set_callback_url(request):
     """Set a custom callback URL (e.g., from ngrok)"""
     global _dynamic_callback_url

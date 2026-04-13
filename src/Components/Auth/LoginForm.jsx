@@ -17,6 +17,11 @@ const LoginForm = ({ darkMode }) => {
     setLoading(true);
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      if (!userCredential.user.emailVerified) {
+        await auth.signOut();
+        setError("Please verify your email before logging in.");
+        return;
+      }
       await redirectByRole(userCredential.user);
     } catch {
       setError("Invalid credentials. Try demo or register.");

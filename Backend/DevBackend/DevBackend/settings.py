@@ -49,7 +49,17 @@ INSTALLED_APPS = [
     'corsheaders',
     'payments',
     'rest_framework',
+    'ratelimit',
 ]
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'payments.auth.FirebaseAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+}
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
@@ -135,6 +145,10 @@ USE_I18N = True
 USE_TZ = True
 
 
+# Session settings
+SESSION_COOKIE_AGE = 3600  # 1 hour
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
@@ -173,3 +187,8 @@ else:
     MPESA_C2B_URL = 'https://sandbox.safaricom.co.ke/mpesa/c2b/v1/registerurl'
     MPESA_B2C_URL = 'https://sandbox.safaricom.co.ke/mpesa/b2c/v1/paymentrequest'
     MPESA_B2B_URL = 'https://sandbox.safaricom.co.ke/mpesa/b2b/v1/paymentrequest'
+
+# Firebase settings
+FIREBASE_PROJECT_ID = _env('FIREBASE_PROJECT_ID', 'devsoko-f7bbc')
+FIREBASE_PRIVATE_KEY = _env('FIREBASE_PRIVATE_KEY', '')
+FIREBASE_CLIENT_EMAIL = _env('FIREBASE_CLIENT_EMAIL', '')
