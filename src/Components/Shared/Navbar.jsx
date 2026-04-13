@@ -33,7 +33,7 @@ const Navbar = ({ theme, toggleTheme }) => {
     : "/login";
 
   return (
-    <nav className="w-full">
+    <nav className="w-full bg-white/80 dark:bg-slate-950/80 border-b border-slate-200/70 dark:border-slate-800/70 backdrop-blur-xl shadow-sm">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
         <div className="flex flex-col">
           <NavLink
@@ -138,7 +138,7 @@ const Navbar = ({ theme, toggleTheme }) => {
 
         <button
           onClick={() => setIsMobileOpen((prev) => !prev)}
-          className="md:hidden rounded-lg p-2 text-slate-800 ring-offset-white transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-300"
+          className="md:hidden rounded-lg p-2 text-slate-800 dark:text-slate-100 ring-offset-white transition hover:bg-slate-100 dark:hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-300 dark:focus:ring-slate-600"
           aria-label="Toggle menu"
         >
           <svg
@@ -159,7 +159,7 @@ const Navbar = ({ theme, toggleTheme }) => {
       </div>
 
       {isMobileOpen && (
-        <div className="md:hidden border-t border-slate-200 bg-white/95 backdrop-blur-sm shadow-xl">
+        <div className="md:hidden border-t border-slate-200 bg-white/95 dark:bg-slate-950/95 dark:border-slate-800 backdrop-blur-sm shadow-xl">
           <div className="space-y-2 px-4 pb-4 pt-2">
             <NavLink
               to="/projects"
