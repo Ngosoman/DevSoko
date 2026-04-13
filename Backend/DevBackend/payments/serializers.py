@@ -1,5 +1,10 @@
 from rest_framework import serializers
-from .models import MpesaRequest, MpesaResponse
+from .models import MpesaRequest, MpesaResponse, Order
+
+class OrderSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Order
+        fields = ['id', 'product', 'quantity', 'status', 'timestamp']
 
 class MpesaRequestSerializer(serializers.ModelSerializer):
 

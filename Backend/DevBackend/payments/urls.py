@@ -6,4 +6,5 @@ urlpatterns = [
     path('mpesa/callback/', views.mpesa_callback, name='mpesa_callback'),
     path('mpesa/get-ngrok-url/', views.get_ngrok_url, name='get_ngrok_url'),
     path('mpesa/set-callback-url/', views.set_callback_url, name='set_callback_url'),
+    path('orders/', views.user_orders, name='user_orders'),
 ]

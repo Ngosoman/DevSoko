@@ -9,7 +9,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from .models import MpesaRequest, MpesaResponse, Order
-from .serializers import MpesaRequestSerializer, MpesaResponseSerializer
+from .serializers import MpesaRequestSerializer, MpesaResponseSerializer, OrderSerializer
 from django.conf import settings
 from django_ratelimit.decorators import ratelimit
 import base64
@@ -27,7 +27,7 @@ def stk_push(request):
     data['amount'] = Decimal(str(data['amount']))
     serializer = MpesaRequestSerializer(data=data)
     if serializer.is_valid():
-        order = Order.objects.create(buyer=None, product=None, quantity=1, status='pending')
+        order = Order.objects.create(buyer=request.user, product=data.get('account_reference'), status='pending')
         mpesa_request = serializer.save(order=order)
         response_data = initiate_stk_push(mpesa_request)
         print("Mpesa API response:", response_data)
@@ -223,6 +223,13 @@ def set_callback_url(request):
         'success': True,
         'callback_url': _dynamic_callback_url
     })
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def user_orders(request):
+    orders = Order.objects.filter(buyer=request.user)
+    serializer = OrderSerializer(orders, many=True)
+    return Response(serializer.data)
 
 # Modified initiate_stk_push to use dynamic callback URL
 def initiate_stk_push_with_dynamic_callback(mpesa_request):
