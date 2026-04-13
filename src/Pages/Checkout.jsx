@@ -28,7 +28,7 @@ const Checkout = ({ project, currentUser }) => {
             setCallbackSet(true);
           }
         })
-        .catch(err => console.log("Could not get callback URL status"));
+        .catch(() => console.log("Could not get callback URL status"));
     };
     fetchCallback();
   }, []);
@@ -50,7 +50,7 @@ const Checkout = ({ project, currentUser }) => {
       }, { headers });
       setCallbackSet(true);
       alert("Callback URL configured successfully!");
-    } catch (err) {
+    } catch {
       alert("Failed to set callback URL");
     }
   };

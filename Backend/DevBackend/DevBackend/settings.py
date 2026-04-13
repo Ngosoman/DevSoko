@@ -14,6 +14,10 @@ from pathlib import Path
 import os
 from dotenv import load_dotenv
 
+# Helper function for environment variables
+def _env(key, default=None):
+    return os.getenv(key, default)
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 

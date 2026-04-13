@@ -54,9 +54,6 @@ const ViewProjects = () => {
       </div>
     );
   }
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-[#FDFDFF] pb-20">
