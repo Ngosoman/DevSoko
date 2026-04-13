@@ -1,17 +1,15 @@
 import { useEffect, useState } from "react";
-import { NavLink, Link, useNavigate } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import { auth } from "../../firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import useUserRole from "../../hooks/useUserRole";
 
 const Navbar = () => {
   const [user, setUser] = useState(null);
-  const [scrolled, setScrolled] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const { role } = useUserRole();
   const navigate = useNavigate();
 
-  // Keep legacy user listener for backward compat
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser || null);
@@ -20,222 +18,226 @@ const Navbar = () => {
     return () => unsubscribe();
   }, []);
 
-  // Handle scroll to toggle navbar background
-  useEffect(() => {
-    const handleScroll = () => {
-      setScrolled(window.scrollY > 50);
-    };
-
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
-
   const handleLogout = async () => {
     await signOut(auth);
     setIsMobileOpen(false);
     navigate("/login");
   };
 
-  const toggleMobileMenu = () => {
-    setIsMobileOpen(!isMobileOpen);
-  };
+  const dashboardPath = user
+    ? role === "admin"
+      ? "/admin-dashboard"
+      : role === "seller"
+      ? "/seller-dashboard"
+      : "/buyer-dashboard"
+    : "/login";
 
   return (
-    <>
-    <nav
-      className={`sticky top-0 left-0 w-full z-50 transition-all duration-500 ease-in-out ${
-        scrolled 
-          ? "bg-white/90 backdrop-blur-md shadow-xl border-b border-gray-100" 
-          : "bg-white/60 backdrop-blur-md shadow-lg"
-      }`}
-      >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4 md:py-3">
-            {/* Logo */}
-            <NavLink 
-              to="/" 
-              className="text-3xl md:text-4xl font-black bg-gradient-to-r from-primary-500 to-orange-600 bg-clip-text text-transparent hover:scale-105 transition-all duration-300"
-              onClick={() => setIsMobileOpen(false)}
-            >
-              DevSoko
-            </NavLink>
+    <nav className="sticky top-0 z-50 w-full">
+      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
+        <NavLink
+          to="/"
+          className="text-2xl font-black tracking-tight text-slate-900 hover:text-slate-700 transition-colors duration-300"
+          onClick={() => setIsMobileOpen(false)}
+        >
+          DevSoko
+        </NavLink>
 
-            {/* Desktop Menu */}
-            <div className="hidden md:flex items-center space-x-1 lg:space-x-8">
+        <div className="hidden items-center gap-3 md:flex">
+          <NavLink
+            to="/projects"
+            className={({ isActive }) =>
+              `rounded-full px-4 py-2 text-sm font-semibold transition-colors duration-300 ${
+                isActive
+                  ? "bg-slate-100 text-slate-900"
+                  : "text-slate-700 hover:text-slate-900 hover:bg-slate-100"
+              }`
+            }
+          >
+            Projects
+          </NavLink>
+
+          {role === "seller" && (
+            <NavLink
+              to="/upload"
+              className={({ isActive }) =>
+                `rounded-full px-4 py-2 text-sm font-semibold transition-colors duration-300 ${
+                  isActive
+                    ? "bg-slate-100 text-slate-900"
+                    : "text-slate-700 hover:text-slate-900 hover:bg-slate-100"
+                }`
+              }
+            >
+              Upload
+            </NavLink>
+          )}
+
+          <NavLink
+            to="/contactpage"
+            className={({ isActive }) =>
+              `rounded-full px-4 py-2 text-sm font-semibold transition-colors duration-300 ${
+                isActive
+                  ? "bg-slate-100 text-slate-900"
+                  : "text-slate-700 hover:text-slate-900 hover:bg-slate-100"
+              }`
+            }
+          >
+            Contact
+          </NavLink>
+
+          {user ? (
+            <>
               <NavLink
-                to="/projects"
+                to={dashboardPath}
                 className={({ isActive }) =>
-                  `px-4 py-2 rounded-xl font-semibold transition-all duration-300 ${
+                  `rounded-full px-4 py-2 text-sm font-semibold transition-colors duration-300 ${
                     isActive
-                      ? "bg-primary-500 text-white shadow-lg"
-                      : "text-gray-700 hover:text-primary-500 hover:bg-primary-50"
+                      ? "bg-slate-100 text-slate-900"
+                      : "text-slate-700 hover:text-slate-900 hover:bg-slate-100"
                   }`
                 }
               >
-                Projects
+                Dashboard
               </NavLink>
-
-              {role === "seller" && (
-                <NavLink
-                  to="/upload"
-                  className={({ isActive }) =>
-                    `px-4 py-2 rounded-xl font-semibold transition-all duration-300 ${
-                      isActive
-                        ? "bg-primary-500 text-white shadow-lg"
-                        : "text-gray-700 hover:text-primary-500 hover:bg-primary-50"
-                    }`
-                  }
-                >
-                  Upload
-                </NavLink>
-              )}
-
-              {user ? (
-                <>
-                  <NavLink
-                    to={role === "admin" ? "/admin-dashboard" : role === "seller" ? "/seller-dashboard" : "/buyer-dashboard"}
-                    className={({ isActive }) =>
-                      `px-4 py-2 rounded-xl font-semibold transition-all duration-300 ${
-                        isActive
-                          ? "bg-primary-500 text-white shadow-lg"
-                          : "text-gray-700 hover:text-primary-500 hover:bg-primary-50"
-                      }`
-                    }
-                  >
-                    Dashboard
-                  </NavLink>
-                  <button
-                    onClick={handleLogout}
-                    className="px-6 py-2 bg-gray-100 text-gray-800 font-semibold rounded-xl hover:bg-gray-200 hover:shadow-md transition-all duration-300"
-                  >
-                    Logout
-                  </button>
-                </>
-              ) : (
-                <>
-                  <NavLink
-                    to="/login"
-                    className="px-4 py-2 font-semibold text-primary-600 hover:text-primary-700 border border-primary-200 hover:border-primary-300 hover:bg-primary-50 rounded-xl transition-all duration-300"
-                  >
-                    Login
-                  </NavLink>
-                  <NavLink
-                    to="/register"
-                    className="px-6 py-2 bg-gradient-to-r from-primary-500 to-orange-600 text-white font-semibold rounded-xl hover:shadow-xl hover:scale-[1.02] transition-all duration-300"
-                    onClick={() => setIsMobileOpen(false)}
-                  >
-                    Register
-                  </NavLink>
-                </>
-              )}
-            </div>
-
-            {/* Mobile hamburger button */}
-            <div className="md:hidden flex items-center">
               <button
-                onClick={toggleMobileMenu}
-                className="p-1 focus:outline-none focus:ring-2 focus:ring-primary-500 rounded-lg"
-                aria-label="Toggle menu"
+                onClick={handleLogout}
+                className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-all duration-300 hover:bg-slate-100"
               >
-                <svg
-                  className={`w-8 h-8 transition-transform duration-300 ${
-                    isMobileOpen ? "rotate-90" : ""
-                  }`}
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d={isMobileOpen ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16M4 18h16"}
-                  />
-                </svg>
+                Logout
               </button>
-            </div>
-          </div>
+            </>
+          ) : (
+            <>
+              <NavLink
+                to="/login"
+                className="rounded-full px-4 py-2 text-sm font-semibold text-slate-700 transition-colors duration-300 hover:text-slate-900 hover:bg-slate-100"
+              >
+                Login
+              </NavLink>
+              <NavLink
+                to="/register"
+                className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition-all duration-300 hover:bg-slate-800"
+                onClick={() => setIsMobileOpen(false)}
+              >
+                Register
+              </NavLink>
+            </>
+          )}
         </div>
 
-        {/* Mobile Menu */}
-        {isMobileOpen && (
-          <div className="md:hidden bg-white/95 backdrop-blur-md border-t border-gray-100 shadow-2xl">
-            <div className="px-4 pt-2 pb-4 space-y-2 max-h-96 overflow-y-auto">
+        <button
+          onClick={() => setIsMobileOpen((prev) => !prev)}
+          className="md:hidden rounded-lg p-2 text-slate-800 ring-offset-white transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-300"
+          aria-label="Toggle menu"
+        >
+          <svg
+            className="h-6 w-6"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d={isMobileOpen ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16M4 18h16"}
+            />
+          </svg>
+        </button>
+      </div>
+
+      {isMobileOpen && (
+        <div className="md:hidden border-t border-slate-200 bg-white/95 backdrop-blur-sm shadow-xl">
+          <div className="space-y-2 px-4 pb-4 pt-2">
+            <NavLink
+              to="/projects"
+              className={({ isActive }) =>
+                `block rounded-2xl px-4 py-3 text-sm font-semibold transition-colors duration-300 ${
+                  isActive
+                    ? "bg-slate-100 text-slate-900"
+                    : "text-slate-700 hover:text-slate-900 hover:bg-slate-100"
+                }`
+              }
+              onClick={() => setIsMobileOpen(false)}
+            >
+              Projects
+            </NavLink>
+
+            {role === "seller" && (
               <NavLink
-                to="/projects"
+                to="/upload"
                 className={({ isActive }) =>
-                  `block px-4 py-3 rounded-xl font-semibold transition-all duration-300 w-full text-left ${
+                  `block rounded-2xl px-4 py-3 text-sm font-semibold transition-colors duration-300 ${
                     isActive
-                      ? "bg-primary-500 text-white shadow-lg"
-                      : "text-gray-700 hover:text-primary-500 hover:bg-primary-50"
+                      ? "bg-slate-100 text-slate-900"
+                      : "text-slate-700 hover:text-slate-900 hover:bg-slate-100"
                   }`
                 }
                 onClick={() => setIsMobileOpen(false)}
               >
-                Projects
+                Upload
               </NavLink>
+            )}
 
-              {role === "seller" && (
+            <NavLink
+              to="/contactpage"
+              className={({ isActive }) =>
+                `block rounded-2xl px-4 py-3 text-sm font-semibold transition-colors duration-300 ${
+                  isActive
+                    ? "bg-slate-100 text-slate-900"
+                    : "text-slate-700 hover:text-slate-900 hover:bg-slate-100"
+                }`
+              }
+              onClick={() => setIsMobileOpen(false)}
+            >
+              Contact
+            </NavLink>
+
+            {user ? (
+              <>
                 <NavLink
-                  to="/upload"
+                  to={dashboardPath}
                   className={({ isActive }) =>
-                    `block px-4 py-3 rounded-xl font-semibold transition-all duration-300 w-full text-left ${
+                    `block rounded-2xl px-4 py-3 text-sm font-semibold transition-colors duration-300 ${
                       isActive
-                        ? "bg-primary-500 text-white shadow-lg"
-                        : "text-gray-700 hover:text-primary-500 hover:bg-primary-50"
+                        ? "bg-slate-100 text-slate-900"
+                        : "text-slate-700 hover:text-slate-900 hover:bg-slate-100"
                     }`
                   }
                   onClick={() => setIsMobileOpen(false)}
                 >
-                  Upload
+                  Dashboard
                 </NavLink>
-              )}
-
-              {user ? (
-                <>
-                  <NavLink
-                    to={role === "admin" ? "/admin-dashboard" : role === "seller" ? "/seller-dashboard" : "/buyer-dashboard"}
-                    className={({ isActive }) =>
-                      `block px-4 py-3 rounded-xl font-semibold transition-all duration-300 w-full text-left ${
-                        isActive
-                          ? "bg-primary-500 text-white shadow-lg"
-                          : "text-gray-700 hover:text-primary-500 hover:bg-primary-50"
-                      }`
-                    }
-                    onClick={() => setIsMobileOpen(false)}
-                  >
-                    Dashboard
-                  </NavLink>
-                  <button
-                    onClick={handleLogout}
-                    className="block w-full text-left px-4 py-3 text-gray-800 font-semibold bg-gray-100 hover:bg-gray-200 rounded-xl transition-all duration-300"
-                  >
-                    Logout
-                  </button>
-                </>
-              ) : (
-                <>
-                  <NavLink
-                    to="/login"
-                    className="block px-4 py-3 font-semibold text-primary-600 hover:text-primary-700 border border-primary-200 hover:border-primary-300 hover:bg-primary-50 rounded-xl transition-all duration-300"
-                    onClick={() => setIsMobileOpen(false)}
-                  >
-                    Login
-                  </NavLink>
-                  <NavLink
-                    to="/register"
-                    className="block px-4 py-3 bg-gradient-to-r from-primary-500 to-orange-600 text-white font-semibold rounded-xl hover:shadow-xl hover:scale-[1.02] transition-all duration-300"
-                    onClick={() => setIsMobileOpen(false)}
-                  >
-                    Register
-                  </NavLink>
-                </>
-              )}
-            </div>
+                <button
+                  onClick={handleLogout}
+                  className="block w-full rounded-2xl bg-slate-100 px-4 py-3 text-left text-sm font-semibold text-slate-800 transition-all duration-300 hover:bg-slate-200"
+                >
+                  Logout
+                </button>
+              </>
+            ) : (
+              <>
+                <NavLink
+                  to="/login"
+                  className="block rounded-2xl px-4 py-3 text-sm font-semibold text-slate-700 transition-colors duration-300 hover:text-slate-900 hover:bg-slate-100"
+                  onClick={() => setIsMobileOpen(false)}
+                >
+                  Login
+                </NavLink>
+                <NavLink
+                  to="/register"
+                  className="block rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition-all duration-300 hover:bg-slate-800"
+                  onClick={() => setIsMobileOpen(false)}
+                >
+                  Register
+                </NavLink>
+              </>
+            )}
           </div>
-        )}
-      </nav>
-    </>
+        </div>
+      )}
+    </nav>
   );
 };
 
