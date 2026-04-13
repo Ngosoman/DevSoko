@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import LoginForm from "../Components/Auth/LoginForm";
 
-const Login = () => {
-  const [darkMode, setDarkMode] = useState(false);
+const Login = ({ theme }) => {
+  const darkMode = theme === 'dark';
   const [particles, setParticles] = useState([]);
 
   useEffect(() => {
@@ -28,11 +28,6 @@ const Login = () => {
 
     return () => clearInterval(interval);
   }, []);
-
-  const toggleDarkMode = () => {
-    setDarkMode(!darkMode);
-    document.documentElement.classList.toggle('dark');
-  };
 
   return (
     <div className={`min-h-screen relative overflow-hidden transition-all duration-500 ${
@@ -62,22 +57,6 @@ const Login = () => {
       <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-r from-indigo-400/20 to-primary-400/20 rounded-full blur-3xl animate-float delay-2000"></div>
       <div className="absolute top-1/2 left-1/4 w-40 h-40 bg-gradient-to-r from-purple-400/20 to-pink-400/20 rounded-full blur-2xl animate-pulse"></div>
 
-      {/* Dark/Light toggle */}
-      <button
-        onClick={toggleDarkMode}
-        className="fixed top-6 right-6 p-3 bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/50 dark:border-slate-700/50 hover:scale-110 transition-all duration-300 z-50"
-        aria-label="Toggle theme"
-      >
-{darkMode ? (
-  <svg className="h-6 w-6 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-  </svg>
-) : (
-  <svg className="h-6 w-6 text-slate-800" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-  </svg>
-)}
-      </button>
 
       {/* Main content */}
       <div className="min-h-screen flex items-center justify-center p-4 lg:p-8 relative z-10">
@@ -97,7 +76,7 @@ const Login = () => {
                 DevSoko
               </h1>
               <p className={`text-sm ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
-                Connect with top developers. Unlock premium projects.
+                Convert Code into Coins.
               </p>
             </div>
           </div>

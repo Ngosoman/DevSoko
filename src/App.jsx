@@ -1,4 +1,5 @@
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, useLocation } from "react-router-dom";
+import { useEffect, useState } from "react";
 import Navbar from "./Components/Shared/Navbar";
 import Home from "./Pages/Home";
 import Register from "./Pages/Register";
@@ -15,21 +16,35 @@ import SellerDashboard from "./Components/Seller/SellerDashboard";
 import BuyerDashboard from "./Components/Buyer/BuyerDashboard";
 import ContactPage from "./Pages/ContactPage";
 
-
-import { useLocation } from "react-router-dom";
 function App() {
   const location = useLocation();
+  const [theme, setTheme] = useState("light");
+
+  useEffect(() => {
+    const savedTheme = localStorage.getItem("devsoko-theme");
+    const initialTheme = savedTheme === "dark" ? "dark" : "light";
+    setTheme(initialTheme);
+    document.documentElement.classList.toggle("dark", initialTheme === "dark");
+  }, []);
+
+  const toggleTheme = () => {
+    const nextTheme = theme === "dark" ? "light" : "dark";
+    setTheme(nextTheme);
+    localStorage.setItem("devsoko-theme", nextTheme);
+    document.documentElement.classList.toggle("dark", nextTheme === "dark");
+  };
+
   const hideNavbar = location.pathname === '/admin-dashboard';
 
   return (
     
       <>
-        {!hideNavbar && <Navbar />}
+        {!hideNavbar && <Navbar theme={theme} toggleTheme={toggleTheme} />}
        
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/register" element={<Register />} />
-        <Route path="/login" element={<Login />} />
+        <Route path="/login" element={<Login theme={theme} toggleTheme={toggleTheme} />} />
         <Route path="/upload" element={<UploadProject />} />
         <Route path="/projects" element={<ViewProjects />} />
         <Route path="/dashboard" element={<BuyerDashboard />} />

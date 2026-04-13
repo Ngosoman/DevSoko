@@ -4,7 +4,7 @@ import { auth } from "../../firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import useUserRole from "../../hooks/useUserRole";
 
-const Navbar = () => {
+const Navbar = ({ theme, toggleTheme }) => {
   const [user, setUser] = useState(null);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const { role } = useUserRole();
@@ -35,13 +35,18 @@ const Navbar = () => {
   return (
     <nav className="sticky top-0 z-50 w-full">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
-        <NavLink
-          to="/"
-          className="text-2xl font-black tracking-tight text-slate-900 hover:text-slate-700 transition-colors duration-300"
-          onClick={() => setIsMobileOpen(false)}
-        >
-          DevSoko
-        </NavLink>
+        <div className="flex flex-col">
+          <NavLink
+            to="/"
+            className="text-2xl font-black tracking-tight text-slate-900 dark:text-slate-100 hover:text-slate-700 dark:hover:text-white transition-colors duration-300"
+            onClick={() => setIsMobileOpen(false)}
+          >
+            DevSoko
+          </NavLink>
+          <span className="text-xs uppercase tracking-[0.32em] text-slate-500 dark:text-slate-400 mt-1">
+            Convert Code into Coins
+          </span>
+        </div>
 
         <div className="hidden items-center gap-3 md:flex">
           <NavLink
@@ -84,6 +89,12 @@ const Navbar = () => {
           >
             Contact
           </NavLink>
+          <button
+            onClick={toggleTheme}
+            className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-all duration-300 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800"
+          >
+            {theme === "dark" ? "Light" : "Dark"}
+          </button>
 
           {user ? (
             <>
@@ -101,7 +112,7 @@ const Navbar = () => {
               </NavLink>
               <button
                 onClick={handleLogout}
-                className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-all duration-300 hover:bg-slate-100"
+                className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-all duration-300 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800"
               >
                 Logout
               </button>
@@ -193,6 +204,12 @@ const Navbar = () => {
             >
               Contact
             </NavLink>
+            <button
+              onClick={toggleTheme}
+              className="block w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left text-sm font-semibold text-slate-700 transition-all duration-300 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800"
+            >
+              {theme === "dark" ? "Light Mode" : "Dark Mode"}
+            </button>
 
             {user ? (
               <>
