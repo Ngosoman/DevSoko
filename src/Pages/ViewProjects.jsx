@@ -1,4 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
+import ProjectCard from '../Components/Project/ProjectCard';
+import ProjectCardSkeleton from '../Components/Project/ProjectCardSkeleton';
 
 // Reusable Storage Helper (Syncs with Seller Dashboard)
 const storage = {
@@ -42,12 +44,16 @@ const ViewProjects = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50">
-        <div className="relative">
-          <div className="w-20 h-20 border-4 border-indigo-100 rounded-full"></div>
-          <div className="w-20 h-20 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin absolute top-0"></div>
+      <div className="container mx-auto px-4 py-8">
+        <h1 className="text-3xl font-bold text-center mb-8">Available Projects</h1>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {Array.from({ length: 6 }).map((_, index) => (
+            <ProjectCardSkeleton key={index} />
+          ))}
         </div>
-        <p className="mt-6 text-slate-400 font-black uppercase tracking-[0.3em] text-xs">Scanning Digital Assets...</p>
+      </div>
+    );
+  }
       </div>
     );
   }

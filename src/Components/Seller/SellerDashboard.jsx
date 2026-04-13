@@ -4,6 +4,7 @@ import { auth, db } from '../../firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
+import DashboardSkeleton from '../Shared/DashboardSkeleton';
 
 // Real-world storage helpers for DevSoko
 const getMyProjects = () => JSON.parse(localStorage.getItem("myProjects") || "[]");
@@ -108,11 +109,7 @@ const SellerDashboard = ({ user, setUser }) => {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <p className="text-slate-500 font-medium">Loading dashboard...</p>
-      </div>
-    );
+    return <DashboardSkeleton />;
   }
 
   return (
