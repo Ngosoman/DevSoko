@@ -94,6 +94,7 @@ const LoginForm = ({ darkMode }) => {
               }`}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              minLength="8"
               required
             />
             <button

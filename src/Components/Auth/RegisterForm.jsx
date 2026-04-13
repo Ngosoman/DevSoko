@@ -73,6 +73,7 @@ const RegisterForm = () => {
         className="w-full p-2 mb-4 border rounded"
         value={password}
         onChange={(e) => setPassword(e.target.value)}
+        minLength="8"
         required
       />
 

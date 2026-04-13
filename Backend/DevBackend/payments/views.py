@@ -9,7 +9,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from .models import MpesaRequest, MpesaResponse, Order
-from .serializers import MpesaRequestSerializer, MpesaResponseSerializer, OrderSerializer
+from .serializers import MpesaRequestSerializer, MpesaResponseSerializer, OrderSerializer, CallbackURLSerializer
 from django.conf import settings
 from django_ratelimit.decorators import ratelimit
 import base64
@@ -172,22 +172,44 @@ def generate_password():
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def mpesa_callback(request):
-    callback_data = request.data
-    stk_callback = callback_data.get('Body', {}).get('stkCallback', {})
-    checkout_request_id = stk_callback.get('CheckoutRequestID')
-    result_code = stk_callback.get('ResultCode')
-    result_desc = stk_callback.get('ResultDesc')
     try:
-        mpesa_request = MpesaRequest.objects.get(mpesa_response__checkout_request_id=checkout_request_id)
-        mpesa_response = mpesa_request.mpesa_response
-        mpesa_response.result_code = result_code
-        mpesa_response.result_desc = result_desc
-        mpesa_response.save()
-        if result_code == 0:
-            mpesa_request.order.status = 'paid'
-            mpesa_request.order.save()
-    except MpesaRequest.DoesNotExist:
-        pass  # Log or handle
+        callback_data = request.data
+        if not isinstance(callback_data, dict):
+            return Response({'error': 'Invalid data format'}, status=400)
+        
+        stk_callback = callback_data.get('Body', {}).get('stkCallback', {})
+        if not stk_callback:
+            return Response({'error': 'Invalid callback structure'}, status=400)
+        
+        checkout_request_id = stk_callback.get('CheckoutRequestID')
+        if not checkout_request_id or not isinstance(checkout_request_id, str) or len(checkout_request_id) > 50:
+            return Response({'error': 'Invalid checkout request ID'}, status=400)
+        
+        result_code = stk_callback.get('ResultCode')
+        if result_code is None or not isinstance(result_code, int):
+            return Response({'error': 'Invalid result code'}, status=400)
+        
+        result_desc = stk_callback.get('ResultDesc', '')
+        if not isinstance(result_desc, str) or len(result_desc) > 255:
+            return Response({'error': 'Invalid result description'}, status=400)
+        
+        # Process the callback
+        try:
+            mpesa_request = MpesaRequest.objects.get(mpesa_response__checkout_request_id=checkout_request_id)
+            mpesa_response = mpesa_request.mpesa_response
+            mpesa_response.result_code = result_code
+            mpesa_response.result_desc = result_desc
+            mpesa_response.save()
+            if result_code == 0:
+                mpesa_request.order.status = 'paid'
+                mpesa_request.order.save()
+        except MpesaRequest.DoesNotExist:
+            pass  # Log or handle
+        
+        return Response({'success': True})
+    except Exception as e:
+        logger.error(f'Callback processing error: {str(e)}')
+        return Response({'error': 'Processing failed'}, status=500)
     return Response({'ResultCode': 0, 'ResultDesc': 'Success'})
 
 # Dynamic callback URL management
@@ -207,17 +229,17 @@ def get_ngrok_url(request):
 @permission_classes([IsAuthenticated])
 @ratelimit(key='user', rate='5/m', method='POST', block=True)
 def set_callback_url(request):
-    """Set a custom callback URL (e.g., from ngrok)"""
-    global _dynamic_callback_url
-    new_url = request.data.get('callback_url')
+    serializer = CallbackURLSerializer(data=request.data)
+    if not serializer.is_valid():
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
-    if not new_url:
-        return Response({'error': 'callback_url is required'}, status=400)
+    new_url = serializer.validated_data['callback_url']
     
-    # Validate URL format
+    # Additional security check
     if not new_url.startswith('http'):
         return Response({'error': 'Invalid URL format'}, status=400)
     
+    global _dynamic_callback_url
     _dynamic_callback_url = new_url
     print(f"Updated callback URL to: {_dynamic_callback_url}")
     

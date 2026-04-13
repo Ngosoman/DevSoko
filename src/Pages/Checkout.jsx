@@ -129,10 +129,13 @@ const Checkout = ({ project, currentUser }) => {
           </p>
           <div className="flex gap-2">
             <input
-              type="text"
+              type="url"
               value={ngrokUrl}
               onChange={(e) => setNgrokUrl(e.target.value)}
               placeholder="https://abc123.ngrok.io"
+              pattern="https://.*"
+              title="Must be a valid HTTPS URL"
+              required
               className="flex-1 p-2 border border-yellow-300 rounded text-sm"
             />
             <button
@@ -157,6 +160,9 @@ const Checkout = ({ project, currentUser }) => {
         value={phone}
         onChange={(e) => setPhone(e.target.value)}
         placeholder="254712345678"
+        pattern="^254[0-9]{9}$"
+        title="Phone number must be in format 254XXXXXXXXX"
+        required
         className="w-full p-2 border border-gray-300 rounded mb-4"
       />
 
@@ -166,6 +172,9 @@ const Checkout = ({ project, currentUser }) => {
         value={amount}
         onChange={(e) => setAmount(e.target.value)}
         placeholder="Enter amount"
+        min="0.01"
+        step="0.01"
+        required
         className="w-full p-2 border border-gray-300 rounded mb-4"
       />
 

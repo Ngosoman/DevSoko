@@ -14,6 +14,12 @@ class AbuseProtectionMiddleware:
         ]
 
     def __call__(self, request):
+        # Validate Content-Type for POST requests
+        if request.method == 'POST':
+            content_type = request.META.get('CONTENT_TYPE', '')
+            if not content_type.startswith('application/json'):
+                return HttpResponseForbidden("Invalid content type. Only JSON accepted.")
+        
         # Check for suspicious user agents
         user_agent = request.META.get('HTTP_USER_AGENT', '').lower()
         if any(bot in user_agent for bot in self.suspicious_user_agents):
