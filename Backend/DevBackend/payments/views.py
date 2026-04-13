@@ -195,6 +195,7 @@ _dynamic_callback_url = None
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
+@ratelimit(key='user', rate='10/m', method='GET', block=True)
 def get_ngrok_url(request):
     """Get current callback URL configuration"""
     return Response({
@@ -204,6 +205,7 @@ def get_ngrok_url(request):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
+@ratelimit(key='user', rate='5/m', method='POST', block=True)
 def set_callback_url(request):
     """Set a custom callback URL (e.g., from ngrok)"""
     global _dynamic_callback_url
@@ -224,12 +226,14 @@ def set_callback_url(request):
         'callback_url': _dynamic_callback_url
     })
 
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def user_orders(request):
-    orders = Order.objects.filter(buyer=request.user)
-    serializer = OrderSerializer(orders, many=True)
-    return Response(serializer.data)
+@api_view(['POST'])
+@permission_classes([AllowAny])
+@ratelimit(key='ip', rate='3/h', method='POST', block=True)
+def register_user(request):
+    # This endpoint can be used to register users if needed
+    # For now, just rate limit registration attempts
+    # Actual registration is handled by Firebase on frontend
+    return Response({'message': 'Registration handled on frontend'}, status=200)
 
 # Modified initiate_stk_push to use dynamic callback URL
 def initiate_stk_push_with_dynamic_callback(mpesa_request):
