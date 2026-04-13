@@ -17,7 +17,7 @@ const getPurchases = async (userId) => {
   return data || [];
 };
 
-const saveMyProjects = async (projects) => {
+const saveMyProjects = () => {
   // Not needed anymore, as we save directly to Supabase
 };
 
@@ -47,10 +47,10 @@ const SellerDashboard = ({ user, setUser }) => {
     }
 
     const getUser = async () => {
-      const { data: { user: authUser }, error } = await supabase.auth.getUser();
+      const { data: { user: authUser } } = await supabase.auth.getUser();
       if (authUser) {
         // Get user data from Supabase users table
-        const { data: userData, error: userError } = await supabase
+        const { data: userData } = await supabase
           .from('users')
           .select('*')
           .eq('id', authUser.id)
@@ -92,8 +92,8 @@ const SellerDashboard = ({ user, setUser }) => {
           setProjects(p);
           setSales(s);
         }
-      } catch (error) {
-        console.error("Error fetching data:", error);
+      } catch (err) {
+        console.error("Error fetching data:", err);
       }
     };
 

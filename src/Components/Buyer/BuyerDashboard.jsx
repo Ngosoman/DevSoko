@@ -35,10 +35,10 @@ const BuyerDashboard = ({ user }) => {
     }
 
     const getUser = async () => {
-      const { data: { user: authUser }, error } = await supabase.auth.getUser();
+      const { data: { user: authUser } } = await supabase.auth.getUser();
       if (authUser) {
         // Get user data from Supabase users table
-        const { data: userData, error: userError } = await supabase
+        const { data: userData } = await supabase
           .from('users')
           .select('*')
           .eq('id', authUser.id)
@@ -80,8 +80,8 @@ const BuyerDashboard = ({ user }) => {
           setMyAcquisitions(buys);
         }
         setProjects(all);
-      } catch (error) {
-        console.error("Error fetching data:", error);
+      } catch (err) {
+        console.error("Error fetching data:", err);
       }
     };
 

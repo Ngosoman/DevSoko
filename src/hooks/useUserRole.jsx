@@ -7,13 +7,13 @@ const useUserRole = () => {
 
   useEffect(() => {
     const fetchRole = async () => {
-      const { data: { user }, error } = await supabase.auth.getUser();
+      const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         setLoading(false);
         return;
       }
 
-      const { data, error: roleError } = await supabase
+      const { data } = await supabase
         .from('users')
         .select('role')
         .eq('id', user.id)

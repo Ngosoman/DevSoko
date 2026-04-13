@@ -32,7 +32,7 @@ const UploadForm = () => {
 
       // Upload image to Supabase storage
       const imageFileName = `${uuidv4()}-${imageFile.name}`;
-      const { data: imageData, error: imageError } = await supabase.storage
+      const { data: _imageData, error: imageError } = await supabase.storage
         .from('projects')
         .upload(`images/${imageFileName}`, imageFile);
 
@@ -43,7 +43,7 @@ const UploadForm = () => {
       let fileUrl = null;
       if (fileFile) {
         const fileFileName = `${uuidv4()}-${fileFile.name}`;
-        const { data: fileData, error: fileError } = await supabase.storage
+        const { data: _fileData, error: fileError } = await supabase.storage
           .from('projects')
           .upload(`files/${fileFileName}`, fileFile);
 

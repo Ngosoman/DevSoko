@@ -14,18 +14,18 @@ const LoginForm = ({ darkMode }) => {
     e.preventDefault();
     setLoading(true);
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { data } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
-      if (error) throw error;
       if (!data.user.email_confirmed_at) {
         await supabase.auth.signOut();
         setError("Please verify your email before logging in.");
         return;
       }
       await redirectByRole(data.user);
-    } catch {
+    } catch (err) {
+      console.error("Login error:", err);
       setError("Invalid credentials. Try demo or register.");
     } finally {
       setLoading(false);
@@ -35,16 +35,16 @@ const LoginForm = ({ darkMode }) => {
   const handleGoogleLogin = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.auth.signInWithOAuth({
+      const { data } = await supabase.auth.signInWithOAuth({
         provider: 'google',
       });
-      if (error) throw error;
       // For OAuth, the redirect will happen, so maybe not needed here
       // But if successful, redirect
       if (data.user) {
         await redirectByRole(data.user);
       }
-    } catch {
+    } catch (err) {
+      console.error("Google login error:", err);
       setError("Google login failed. Try email.");
     } finally {
       setLoading(false);
@@ -52,7 +52,7 @@ const LoginForm = ({ darkMode }) => {
   };
 
   const redirectByRole = async (user) => {
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from('users')
       .select('role')
       .eq('id', user.id)
