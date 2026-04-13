@@ -4,6 +4,9 @@ from django.conf import settings
 from rest_framework import authentication, exceptions
 from django.contrib.auth.models import User
 from django.contrib.auth import get_user_model
+import logging
+
+logger = logging.getLogger('payments')
 
 # Initialize Firebase Admin SDK
 if not firebase_admin._apps and settings.FIREBASE_PRIVATE_KEY:
@@ -30,6 +33,7 @@ class FirebaseAuthentication(authentication.BaseAuthentication):
             email_verified = decoded_token.get('email_verified', False)
 
             if not email_verified:
+                logger.warning(f'Authentication failed: Email not verified for user {uid}')
                 raise exceptions.AuthenticationFailed('Email not verified')
 
             # Get or create user
@@ -38,6 +42,8 @@ class FirebaseAuthentication(authentication.BaseAuthentication):
                 username=uid,
                 defaults={'email': email}
             )
+            logger.info(f'Authentication successful for user {uid}')
             return (user, None)
         except Exception as e:
+            logger.warning(f'Authentication failed: {str(e)}')
             raise exceptions.AuthenticationFailed('Invalid token')
