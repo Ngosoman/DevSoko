@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import { auth } from "../firebase";
+import { supabase } from "../supabaseClient";
 
 const Checkout = ({ project, currentUser }) => {
   const [phone, setPhone] = useState("");
@@ -10,9 +10,9 @@ const Checkout = ({ project, currentUser }) => {
   const [callbackSet, setCallbackSet] = useState(false);
 
   const getAuthHeaders = async () => {
-    const user = auth.currentUser;
+    const { data: { user } } = await supabase.auth.getUser();
     if (user) {
-      const token = await user.getIdToken();
+      const token = user.access_token;
       return { Authorization: `Bearer ${token}` };
     }
     return {};

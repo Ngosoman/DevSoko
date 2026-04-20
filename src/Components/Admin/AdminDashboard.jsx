@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { auth } from "../../firebase";
-import { signOut } from "firebase/auth";
+import { supabase } from "../../supabaseClient";
 
 // Utility functions (prefixed to avoid ESLint unused warnings)
 const _getAllProjects = () => JSON.parse(localStorage.getItem("allProjects") || "[]");
@@ -38,7 +37,7 @@ const AdminDashboard = ({ user = { name: "Admin" } }) => {
 
   const handleLogout = async () => {
     try {
-      await signOut(auth);
+      await supabase.auth.signOut();
       window.location.href = "/login";
     } catch (error) {
       console.error("Logout error:", error);

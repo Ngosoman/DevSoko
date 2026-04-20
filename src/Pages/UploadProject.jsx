@@ -2,21 +2,25 @@ import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import UploadForm from "../Components/Project/UploadForm";
 import useUserRole from "../hooks/useUserRole";
-import { auth } from "../firebase";
+import { supabase } from "../supabaseClient";
 
 const UploadProject = () => {
   const { role, loading } = useUserRole();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!loading) {
-      const user = auth.currentUser;
+    const checkUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         navigate("/login");
       } else if (role !== "seller") {
         alert("Only sellers can upload projects.");
         navigate("/projects");
       }
+    };
+
+    if (!loading) {
+      checkUser();
     }
   }, [loading, role, navigate]);
 
