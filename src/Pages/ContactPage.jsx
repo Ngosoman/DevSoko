@@ -2,65 +2,65 @@ import {FaFacebookF,FaTwitter, FaInstagram,  FaLinkedinIn,  FaWhatsapp,} from "r
 
 const ContactPage = () => {
   return (
-    <div className="bg-gray-50 min-h-screen py-12  pt-36 px-4 md:px-20">
+    <div className="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 py-12 pt-36 px-4 md:px-20 transition-colors duration-300">
       <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-10 items-start">
         {/* Contact Form */}
-        <div className="bg-white p-8 rounded-xl shadow-md border border-red-100">
+        <div className="bg-white dark:bg-slate-900/95 p-8 rounded-xl shadow-md border border-slate-200 dark:border-slate-800">
           <form className="space-y-6">
             <div className="grid md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700">
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
                   Full name *
                 </label>
                 <input
                   type="text"
                   placeholder="Your Name"
-                  className="mt-1 w-full border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  className="mt-1 w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
                   Organization
                 </label>
                 <input
                   type="text"
                   placeholder="Company Name"
-                  className="mt-1 w-full border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  className="mt-1 w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
                 />
               </div>
             </div>
 
             <div className="grid md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700">
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
                   Work email address *
                 </label>
                 <input
                   type="email"
                   placeholder="Your Email"
-                  className="mt-1 w-full border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  className="mt-1 w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
                   Phone number
                 </label>
                 <input
                   type="tel"
                   placeholder="Your Phone"
-                  className="mt-1 w-full border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  className="mt-1 w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700">
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
                 How can we help you? *
               </label>
               <textarea
                 placeholder="Message"
                 rows="4"
-                className="mt-1 w-full border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                className="mt-1 w-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
               ></textarea>
             </div>
 
@@ -76,13 +76,13 @@ const ContactPage = () => {
         {/* Contact Information */}
         <div className="space-y-6">
           <div>
-            <h4 className="text-blue-800 font-semibold uppercase tracking-wide">
+            <h4 className="text-blue-800 dark:text-blue-300 font-semibold uppercase tracking-wide">
               Contact Us
             </h4>
-            <h2 className="text-3xl font-bold text-gray-800 mt-2">
+            <h2 className="text-3xl font-bold text-slate-900 dark:text-slate-100 mt-2">
               Let's Get In Touch
             </h2>
-            <p className="mt-4 text-gray-600">
+            <p className="mt-4 text-slate-600 dark:text-slate-300">
               Are you struggling with your project? Our experienced team can
               help! We offer professional guidance and support to ensure your
               project is a success. Contact us now to get started.
@@ -91,10 +91,10 @@ const ContactPage = () => {
 
           {/* Social Media */}
           <div>
-            <h4 className="font-semibold text-gray-800">
+            <h4 className="font-semibold text-slate-900 dark:text-slate-100">
               Follow Us On Social Media
             </h4>
-            <div className="flex space-x-4 mt-4">
+            <div className="flex flex-wrap gap-3 mt-4">
               <a
                 href="https://facebook.com/YourPageName"
                 target="_blank"
@@ -131,8 +131,8 @@ const ContactPage = () => {
 
           {/* WhatsApp Chat */}
           <div className="fixed bottom-6 right-6 flex items-center space-x-2">
-            <span className="bg-gray-100 px-3 py-2 rounded-lg shadow text-sm font-semibold">
-              NEED HELP? <span className="text-gray-700">CHAT WITH US</span>
+            <span className="bg-white dark:bg-slate-800 px-3 py-2 rounded-lg shadow text-sm font-semibold text-slate-700 dark:text-slate-200">
+              NEED HELP? <span className="text-slate-700 dark:text-slate-100">CHAT WITH US</span>
             </span>
             <a
               href="https://wa.me/wa.no"
@@ -145,9 +145,6 @@ const ContactPage = () => {
           </div>
         </div>
       </div>
-      {/* <h1 className="text-center"> Partners and customers</h1> */}
-      {/* <div>Zindua</div> */}
-
     </div>
   );
 };
