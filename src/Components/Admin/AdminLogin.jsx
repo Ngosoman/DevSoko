@@ -26,18 +26,18 @@ const AdminLogin = () => {
   return (
     <>
       <Navbar />
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center px-4">
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex items-center justify-center px-4 transition-colors duration-300">
         <form
           onSubmit={handleLogin}
-          className="w-full max-w-md bg-white p-6 rounded shadow"
+          className="w-full max-w-md bg-white dark:bg-slate-800 p-6 rounded shadow border border-slate-200 dark:border-slate-700"
         >
-          <h1 className="text-2xl font-bold mb-4 text-center">Admin Login</h1>
-          {error && <p className="text-red-600 text-sm mb-3">{error}</p>}
+          <h1 className="text-2xl font-bold mb-4 text-center text-slate-900 dark:text-slate-100">Admin Login</h1>
+          {error && <p className="text-red-600 dark:text-red-400 text-sm mb-3">{error}</p>}
 
           <input
             type="email"
             placeholder="Admin email"
-            className="w-full border rounded p-2 mb-3"
+            className="w-full border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 rounded p-2 mb-3 focus:ring-2 focus:ring-blue-500 outline-none"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
@@ -45,7 +45,7 @@ const AdminLogin = () => {
           <input
             type="password"
             placeholder="Password"
-            className="w-full border rounded p-2 mb-4"
+            className="w-full border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 rounded p-2 mb-4 focus:ring-2 focus:ring-blue-500 outline-none"
             value={pass}
             onChange={(e) => setPass(e.target.value)}
           />

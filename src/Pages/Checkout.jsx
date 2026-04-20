@@ -112,79 +112,80 @@ const Checkout = ({ project, currentUser }) => {
     localStorage.setItem('sales', JSON.stringify(sales));
   };
 
-  
   return (
-    <div className="max-w-md mx-auto mt-10 bg-white shadow-xl rounded-xl p-6">
-      <h2 className="text-2xl font-bold mb-4 text-center">DevSoko Checkout</h2>
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 p-6 transition-colors duration-300">
+      <div className="max-w-md mx-auto mt-10 bg-white dark:bg-slate-800 shadow-xl rounded-xl p-6 border border-slate-200 dark:border-slate-700">
+        <h2 className="text-2xl font-bold mb-4 text-center text-slate-900 dark:text-slate-100">DevSoko Checkout</h2>
 
-      {/* Ngrok URL Configuration */}
-      {!callbackSet && (
-        <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-          <h3 className="font-bold text-yellow-800 mb-2">⚠️ Setup Required</h3>
-          <p className="text-sm text-yellow-700 mb-3">
-            For M-Pesa to work, you need a public URL. 
-            <br/>1. Start ngrok: <code>ngrok http 8000</code>
-            <br/>2. Copy your HTTPS URL (e.g., https://abc123.ngrok.io)
-            <br/>3. Paste it below
-          </p>
-          <div className="flex gap-2">
-            <input
-              type="url"
-              value={ngrokUrl}
-              onChange={(e) => setNgrokUrl(e.target.value)}
-              placeholder="https://abc123.ngrok.io"
-              pattern="https://.*"
-              title="Must be a valid HTTPS URL"
-              required
-              className="flex-1 p-2 border border-yellow-300 rounded text-sm"
-            />
-            <button
-              onClick={handleSetCallbackUrl}
-              className="bg-yellow-600 hover:bg-yellow-700 text-white px-3 py-2 rounded text-sm"
-            >
-              Set
-            </button>
+        {/* Ngrok URL Configuration */}
+        {!callbackSet && (
+          <div className="mb-6 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+            <h3 className="font-bold text-yellow-800 dark:text-yellow-200 mb-2">⚠️ Setup Required</h3>
+            <p className="text-sm text-yellow-700 dark:text-yellow-300 mb-3">
+              For M-Pesa to work, you need a public URL. 
+              <br/>1. Start ngrok: <code>ngrok http 8000</code>
+              <br/>2. Copy your HTTPS URL (e.g., https://abc123.ngrok.io)
+              <br/>3. Paste it below
+            </p>
+            <div className="flex gap-2">
+              <input
+                type="url"
+                value={ngrokUrl}
+                onChange={(e) => setNgrokUrl(e.target.value)}
+                placeholder="https://abc123.ngrok.io"
+                pattern="https://.*"
+                title="Must be a valid HTTPS URL"
+                required
+                className="flex-1 p-2 border border-yellow-300 dark:border-yellow-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 rounded text-sm"
+              />
+              <button
+                onClick={handleSetCallbackUrl}
+                className="bg-yellow-600 hover:bg-yellow-700 text-white px-3 py-2 rounded text-sm"
+              >
+                Set
+              </button>
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {callbackSet && (
-        <div className="mb-4 p-2 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700">
-          ✓ M-Pesa callback URL configured
-        </div>
-      )}
+        {callbackSet && (
+          <div className="mb-4 p-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg text-sm text-green-700 dark:text-green-300">
+            ✓ M-Pesa callback URL configured
+          </div>
+        )}
 
-      <label className="block mb-2 font-medium text-gray-700">Phone Number (Format: 2547XXXXXXXX)</label>
-      <input
-        type="text"
-        value={phone}
-        onChange={(e) => setPhone(e.target.value)}
-        placeholder="254712345678"
-        pattern="^254[0-9]{9}$"
-        title="Phone number must be in format 254XXXXXXXXX"
-        required
-        className="w-full p-2 border border-gray-300 rounded mb-4"
-      />
+        <label className="block mb-2 font-medium text-slate-700 dark:text-slate-300">Phone Number (Format: 2547XXXXXXXX)</label>
+        <input
+          type="text"
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+          placeholder="254712345678"
+          pattern="^254[0-9]{9}$"
+          title="Phone number must be in format 254XXXXXXXXX"
+          required
+          className="w-full p-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 rounded mb-4"
+        />
 
-      <label className="block mb-2 font-medium text-gray-700">Amount</label>
-      <input
-        type="number"
-        value={amount}
-        onChange={(e) => setAmount(e.target.value)}
-        placeholder="Enter amount"
-        min="0.01"
-        step="0.01"
-        required
-        className="w-full p-2 border border-gray-300 rounded mb-4"
-      />
+        <label className="block mb-2 font-medium text-slate-700 dark:text-slate-300">Amount</label>
+        <input
+          type="number"
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          placeholder="Enter amount"
+          min="0.01"
+          step="0.01"
+          required
+          className="w-full p-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 rounded mb-4"
+        />
 
-      <button
-        onClick={handlePayment}
-        disabled={isProcessing || !callbackSet}
-        className={`w-full font-bold py-2 px-4 rounded ${isProcessing || !callbackSet ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 text-white'}`}
-      >
-        {isProcessing ? "Processing..." : "Pay with M-Pesa"}
-      </button>
+        <button
+          onClick={handlePayment}
+          disabled={isProcessing || !callbackSet}
+          className={`w-full font-bold py-2 px-4 rounded ${isProcessing || !callbackSet ? 'bg-slate-400 dark:bg-slate-600 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 text-white'}`}
+        >
+          {isProcessing ? "Processing..." : "Pay with M-Pesa"}
+        </button>
+      </div>
     </div>
   );
 };

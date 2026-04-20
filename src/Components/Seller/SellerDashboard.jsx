@@ -142,16 +142,16 @@ const SellerDashboard = ({ user, setUser }) => {
   }
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-6 duration-700 pt-24">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 space-y-8 animate-in fade-in slide-in-from-bottom-6 duration-700 pt-24 transition-colors duration-300">
       {/* Header Section */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h1 className="text-4xl font-black text-slate-900 tracking-tight">Seller <span className="text-indigo-600">Forge</span></h1>
-          <p className="text-slate-500 font-medium mt-1">Manage your intellectual property and track commercial success.</p>
+          <h1 className="text-4xl font-black text-slate-900 dark:text-slate-100 tracking-tight">Seller <span className="text-indigo-600 dark:text-indigo-400">Forge</span></h1>
+          <p className="text-slate-500 dark:text-slate-400 font-medium mt-1">Manage your intellectual property and track commercial success.</p>
         </div>
         <button 
           onClick={() => setShowUploadModal(true)}
-          className="bg-slate-900 hover:bg-indigo-600 text-white px-8 py-4 rounded-2xl font-bold shadow-xl shadow-slate-200 transition-all hover:-translate-y-1 active:scale-95 flex items-center space-x-3"
+          className="bg-slate-900 dark:bg-slate-100 hover:bg-indigo-600 dark:hover:bg-indigo-500 text-white dark:text-slate-900 px-8 py-4 rounded-2xl font-bold shadow-xl shadow-slate-200 dark:shadow-slate-800 transition-all hover:-translate-y-1 active:scale-95 flex items-center space-x-3"
         >
           <span className="text-xl">⚡</span>
           <span>Deploy New System</span>
@@ -159,13 +159,13 @@ const SellerDashboard = ({ user, setUser }) => {
       </div>
 
       {/* Tabs */}
-      <div className="flex space-x-1 bg-slate-200/50 p-1.5 rounded-2xl w-fit">
+      <div className="flex space-x-1 bg-slate-200/50 dark:bg-slate-800/50 p-1.5 rounded-2xl w-fit">
         {['overview', 'inventory', 'sales'].map((t) => (
           <button
             key={t}
             onClick={() => setActiveTab(t)}
             className={`px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
-              activeTab === t ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+              activeTab === t ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
             }`}
           >
             {t}
@@ -176,25 +176,25 @@ const SellerDashboard = ({ user, setUser }) => {
       {/* Overview Grid */}
       {activeTab === 'overview' && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm relative overflow-hidden group">
+          <div className="bg-white dark:bg-slate-800 p-8 rounded-[2.5rem] border border-slate-200 dark:border-slate-700 shadow-sm relative overflow-hidden group">
             <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-125 transition-transform">
-              <span className="text-6xl italic font-black">$$$</span>
+              <span className="text-6xl italic font-black text-slate-900 dark:text-slate-100">$$$</span>
             </div>
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-4">Gross Revenue</p>
-            <h3 className="text-4xl font-black text-slate-900">KES {stats.totalSales.toLocaleString()}</h3>
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500 mb-4">Gross Revenue</p>
+            <h3 className="text-4xl font-black text-slate-900 dark:text-slate-100">KES {stats.totalSales.toLocaleString()}</h3>
             <div className="mt-6 flex items-center space-x-2">
               <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-tighter">Live Financial Feed</span>
+              <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-tighter">Live Financial Feed</span>
             </div>
           </div>
 
-          <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm">
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-4">Hosted Assets</p>
-            <h3 className="text-4xl font-black text-slate-900">{stats.activeCount} <span className="text-sm font-medium text-slate-400">Systems</span></h3>
-            <p className="text-xs text-indigo-500 font-bold mt-4">Platform Indexed</p>
+          <div className="bg-white dark:bg-slate-800 p-8 rounded-[2.5rem] border border-slate-200 dark:border-slate-700 shadow-sm">
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500 mb-4">Hosted Assets</p>
+            <h3 className="text-4xl font-black text-slate-900 dark:text-slate-100">{stats.activeCount} <span className="text-sm font-medium text-slate-400 dark:text-slate-500">Systems</span></h3>
+            <p className="text-xs text-indigo-500 dark:text-indigo-400 font-bold mt-4">Platform Indexed</p>
           </div>
 
-          <div className="bg-indigo-600 p-8 rounded-[2.5rem] shadow-2xl shadow-indigo-100 text-white">
+          <div className="bg-indigo-600 dark:bg-indigo-700 p-8 rounded-[2.5rem] shadow-2xl shadow-indigo-100 dark:shadow-indigo-900/20 text-white">
             <p className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-200 mb-4">Account Fuel</p>
             <h3 className="text-4xl font-black">{currentUser.codeCredits}</h3>
             <p className="text-xs text-indigo-100 font-medium mt-4 italic">Next deployment: 10 Credits</p>

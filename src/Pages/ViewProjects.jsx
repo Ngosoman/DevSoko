@@ -52,8 +52,8 @@ const ViewProjects = () => {
 
   if (loading) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold text-center mb-8">Available Projects</h1>
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 container mx-auto px-4 py-8 transition-colors duration-300">
+        <h1 className="text-3xl font-bold text-center mb-8 text-slate-900 dark:text-slate-100">Available Projects</h1>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {Array.from({ length: 6 }).map((_, index) => (
             <ProjectCardSkeleton key={index} />
@@ -64,19 +64,19 @@ const ViewProjects = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#FDFDFF] pb-20">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 pb-20 transition-colors duration-300">
       {/* Hero Section */}
       <section className="relative pt-20 pb-16 px-6 overflow-hidden">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full bg-[radial-gradient(circle_at_top,_var(--tw-gradient-stops))] from-indigo-50/50 via-transparent to-transparent -z-10" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full bg-[radial-gradient(circle_at_top,_var(--tw-gradient-stops))] from-indigo-50/50 dark:from-indigo-900/20 via-transparent to-transparent -z-10" />
         
         <div className="max-w-6xl mx-auto text-center space-y-6">
-          <div className="inline-block bg-white border border-slate-200 px-4 py-2 rounded-2xl shadow-sm">
-            <span className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Premium Software Marketplace</span>
+          <div className="inline-block bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-4 py-2 rounded-2xl shadow-sm">
+            <span className="text-[10px] font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400">Premium Software Marketplace</span>
           </div>
-          <h1 className="text-6xl md:text-7xl font-black text-slate-900 tracking-tighter leading-none">
+          <h1 className="text-6xl md:text-7xl font-black text-slate-900 dark:text-slate-100 tracking-tighter leading-none">
             Acquire <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600">Production-Ready</span> Systems
           </h1>
-          <p className="max-w-2xl mx-auto text-slate-500 font-medium text-lg">
+          <p className="max-w-2xl mx-auto text-slate-500 dark:text-slate-400 font-medium text-lg">
             High-performance codebases, SaaS templates, and AI engines ready for immediate commercial deployment.
           </p>
         </div>
@@ -91,8 +91,8 @@ const ViewProjects = () => {
               onClick={() => setFilter(cat)}
               className={`px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${
                 filter === cat 
-                ? 'bg-slate-900 text-white shadow-xl shadow-slate-200 scale-105' 
-                : 'bg-white text-slate-400 border border-slate-200 hover:border-indigo-300 hover:text-indigo-600'
+                ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 shadow-xl shadow-slate-200 dark:shadow-slate-800 scale-105' 
+                : 'bg-white dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-200 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-600 hover:text-indigo-600 dark:hover:text-indigo-400'
               }`}
             >
               {cat}
@@ -104,17 +104,17 @@ const ViewProjects = () => {
       {/* Main Grid */}
       <main className="max-w-7xl mx-auto px-6">
         {filteredProjects.length === 0 ? (
-          <div className="py-20 text-center space-y-4 bg-white rounded-[3rem] border border-dashed border-slate-200">
+          <div className="py-20 text-center space-y-4 bg-white dark:bg-slate-800 rounded-[3rem] border border-dashed border-slate-200 dark:border-slate-700">
             <span className="text-5xl block grayscale opacity-20">📦</span>
-            <h3 className="text-xl font-bold text-slate-900">No systems found in this sector</h3>
-            <p className="text-slate-400">Check back later for new deployments.</p>
+            <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100">No systems found in this sector</h3>
+            <p className="text-slate-400 dark:text-slate-500">Check back later for new deployments.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
             {filteredProjects.map((proj) => (
               <div 
                 key={proj.id} 
-                className="group bg-white rounded-[2.5rem] border border-slate-200 shadow-sm hover:shadow-2xl hover:shadow-indigo-100/50 hover:-translate-y-2 transition-all duration-500 overflow-hidden"
+                className="group bg-white dark:bg-slate-800 rounded-[2.5rem] border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-2xl hover:shadow-indigo-100/50 dark:hover:shadow-indigo-900/20 hover:-translate-y-2 transition-all duration-500 overflow-hidden"
               >
                 {/* Image / Gradient Preview */}
                 <div className="h-64 relative overflow-hidden">
@@ -135,7 +135,7 @@ const ViewProjects = () => {
                   
                   {/* Status Overlay */}
                   <div className="absolute top-6 right-6">
-                    <span className="bg-white/90 backdrop-blur-md px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest text-slate-900 shadow-sm flex items-center space-x-2">
+                    <span className="bg-white/90 dark:bg-slate-800/90 backdrop-blur-md px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest text-slate-900 dark:text-slate-100 shadow-sm flex items-center space-x-2">
                       <span className="h-1.5 w-1.5 bg-emerald-500 rounded-full animate-pulse" />
                       <span>Verified Code</span>
                     </span>
@@ -146,29 +146,29 @@ const ViewProjects = () => {
                 <div className="p-8 space-y-6">
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                       <span className="text-[10px] font-bold text-indigo-500 uppercase tracking-tighter">{proj.category}</span>
-                       <span className="text-[10px] font-medium text-slate-400 italic">ID: {String(proj.id).slice(-6)}</span>
+                       <span className="text-[10px] font-bold text-indigo-500 dark:text-indigo-400 uppercase tracking-tighter">{proj.category}</span>
+                       <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500 italic">ID: {String(proj.id).slice(-6)}</span>
                     </div>
-                    <h2 className="text-2xl font-black text-slate-900 leading-tight group-hover:text-indigo-600 transition-colors">
+                    <h2 className="text-2xl font-black text-slate-900 dark:text-slate-100 leading-tight group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
                       {proj.title}
                     </h2>
-                    <p className="text-sm text-slate-500 font-medium line-clamp-2 leading-relaxed">
+                    <p className="text-sm text-slate-500 dark:text-slate-400 font-medium line-clamp-2 leading-relaxed">
                       {proj.description || "No manifesto provided for this technical asset."}
                     </p>
                   </div>
 
-                  <div className="flex items-center justify-between pt-6 border-t border-slate-50">
+                  <div className="flex items-center justify-between pt-6 border-t border-slate-50 dark:border-slate-700">
                     <div>
-                      <p className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1">Acquisition Cost</p>
+                      <p className="text-[9px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-widest mb-1">Acquisition Cost</p>
                       <div className="flex items-baseline space-x-1">
-                        <span className="text-xs font-bold text-slate-400 uppercase">KES</span>
-                        <span className="text-2xl font-black text-slate-900">{Number(proj.price).toLocaleString()}</span>
+                        <span className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase">KES</span>
+                        <span className="text-2xl font-black text-slate-900 dark:text-slate-100">{Number(proj.price).toLocaleString()}</span>
                       </div>
                     </div>
 
                     <a
                       href={`/checkout?id=${proj.id}`}
-                      className="bg-slate-900 text-white px-6 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-600 shadow-lg shadow-slate-100 transition-all flex items-center space-x-2"
+                      className="bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 px-6 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-600 dark:hover:bg-indigo-500 shadow-lg shadow-slate-100 dark:shadow-slate-800 transition-all flex items-center space-x-2"
                     >
                       <span>Purchase</span>
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -186,15 +186,15 @@ const ViewProjects = () => {
       {/* Quality Badge */}
       <footer className="mt-20 flex justify-center">
         <div className="flex items-center space-x-8 opacity-40 hover:opacity-100 transition-opacity grayscale hover:grayscale-0">
-          <div className="flex items-center space-x-2 font-black text-[10px] uppercase tracking-widest text-slate-400">
+          <div className="flex items-center space-x-2 font-black text-[10px] uppercase tracking-widest text-slate-400 dark:text-slate-500">
             <span className="text-xl">🛡️</span>
             <span>Escrow Protected</span>
           </div>
-          <div className="flex items-center space-x-2 font-black text-[10px] uppercase tracking-widest text-slate-400">
+          <div className="flex items-center space-x-2 font-black text-[10px] uppercase tracking-widest text-slate-400 dark:text-slate-500">
             <span className="text-xl">⚡</span>
             <span>Instant Delivery</span>
           </div>
-          <div className="flex items-center space-x-2 font-black text-[10px] uppercase tracking-widest text-slate-400">
+          <div className="flex items-center space-x-2 font-black text-[10px] uppercase tracking-widest text-slate-400 dark:text-slate-500">
             <span className="text-xl">💳</span>
             <span>MPESA Integrated</span>
           </div>

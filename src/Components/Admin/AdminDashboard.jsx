@@ -53,8 +53,8 @@ const AdminDashboard = ({ user = { name: "Admin" } }) => {
   };
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] flex flex-col lg:flex-row">
-      <aside className={`transition-all duration-300 ${isSidebarCollapsed ? 'w-full lg:w-20' : 'w-full lg:w-72'} bg-slate-900 text-white flex flex-col p-6 shadow-2xl z-20`}>
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col lg:flex-row transition-colors duration-300">
+      <aside className={`transition-all duration-300 ${isSidebarCollapsed ? 'w-full lg:w-20' : 'w-full lg:w-72'} bg-slate-900 dark:bg-slate-800 text-white flex flex-col p-6 shadow-2xl z-20`}>
         <div className={`mb-10 ${isSidebarCollapsed ? 'hidden lg:flex justify-center p-2' : ''}`}>
           <h1 className="text-2xl font-bold tracking-tighter">DEV<span className="text-indigo-400">SOKO</span></h1>
           <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Admin Authority</p>
@@ -82,18 +82,18 @@ const AdminDashboard = ({ user = { name: "Admin" } }) => {
         </div>
       </aside>
 
-      <main className="flex-1 p-6 lg:p-10 overflow-y-auto">
+      <main className="flex-1 p-6 lg:p-10 overflow-y-auto bg-slate-50 dark:bg-slate-950">
         <header className="flex flex-col md:flex-row md:items-center justify-between mb-10 space-y-4 md:space-y-0">
           <div>
-            <h2 className="text-3xl font-black text-slate-800 capitalize">{tab} Control</h2>
-            <p className="text-slate-500 font-medium">Monitoring real-time platform activity and data.</p>
+            <h2 className="text-3xl font-black text-slate-800 dark:text-slate-100 capitalize">{tab} Control</h2>
+            <p className="text-slate-500 dark:text-slate-400 font-medium">Monitoring real-time platform activity and data.</p>
           </div>
           <div className="flex items-center space-x-4">
             <div className="relative">
-              <input type="text" placeholder="Search..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none w-64 shadow-sm" />
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
+              <input type="text" placeholder="Search..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10 pr-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none w-64 shadow-sm" />
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500">🔍</span>
             </div>
-            <div className="h-10 w-10 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 font-bold border-2 border-white shadow-sm">{user.name.charAt(0)}</div>
+            <div className="h-10 w-10 bg-indigo-100 dark:bg-indigo-900/20 rounded-full flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold border-2 border-white dark:border-slate-700 shadow-sm">{user.name.charAt(0)}</div>
           </div>
         </header>
 

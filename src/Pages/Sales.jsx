@@ -25,24 +25,26 @@ const Sales = ({ user }) => {
     fetchSales();
   }, [user]);
 
-  if (loading) return <div>Loading...</div>;
+  if (loading) return <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex items-center justify-center p-6 transition-colors duration-300">Loading...</div>;
 
   return (
-    <div className="p-4">
-      <h3 className="text-xl font-semibold mb-4">Your Sales</h3>
-      {mySales.length === 0 ? (
-        <p className="text-gray-500">No sales yet.</p>
-      ) : (
-        <ul className="space-y-3">
-          {mySales.map((sale, idx) => (
-            <li key={idx} className="border p-4 rounded bg-white shadow">
-              <p className="font-semibold">Project: {sale.projects?.title || 'Unknown'}</p>
-              <p className="text-sm text-gray-600">Amount: KES {sale.amount}</p>
-              <p className="text-sm text-gray-500">Date: {new Date(sale.created_at).toLocaleString()}</p>
-            </li>
-          ))}
-        </ul>
-      )}
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 p-6 transition-colors duration-300">
+      <div className="max-w-4xl mx-auto">
+        <h3 className="text-2xl font-semibold mb-6 text-slate-900 dark:text-slate-100">Your Sales</h3>
+        {mySales.length === 0 ? (
+          <p className="text-slate-500 dark:text-slate-400">No sales yet.</p>
+        ) : (
+          <ul className="space-y-4">
+            {mySales.map((sale, idx) => (
+              <li key={idx} className="border border-slate-200 dark:border-slate-700 p-6 rounded-lg bg-white dark:bg-slate-800 shadow-sm">
+                <p className="font-semibold text-slate-900 dark:text-slate-100">Project: {sale.projects?.title || 'Unknown'}</p>
+                <p className="text-sm text-slate-600 dark:text-slate-400">Amount: KES {sale.amount}</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400">Date: {new Date(sale.created_at).toLocaleString()}</p>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </div>
   );
 };

@@ -108,11 +108,11 @@ const BuyerDashboard = ({ user }) => {
   }
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-6 duration-700 pt-24">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 space-y-8 animate-in fade-in slide-in-from-bottom-6 duration-700 pt-24 transition-colors duration-300">
       {/* Header & Search */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <p className="text-slate-500 font-medium mt-1">Source high-performance codebases for your next project.</p>
+          <p className="text-slate-500 dark:text-slate-400 font-medium mt-1">Source high-performance codebases for your next project.</p>
         </div>
         
         <div className="relative w-full md:w-96">
@@ -121,20 +121,20 @@ const BuyerDashboard = ({ user }) => {
             placeholder="Filter by tech stack or name..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-12 pr-4 py-4 bg-white border border-slate-200 rounded-2xl shadow-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-medium"
+            className="w-full pl-12 pr-4 py-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-2xl shadow-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all font-medium"
           />
           <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xl">🔍</span>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex space-x-1 bg-slate-200/50 p-1.5 rounded-2xl w-fit">
+      <div className="flex space-x-1 bg-slate-200/50 dark:bg-slate-800/50 p-1.5 rounded-2xl w-fit">
         {['marketplace', 'my acquisitions', 'wallet'].map((t) => (
           <button
             key={t}
             onClick={() => setActiveTab(t)}
             className={`px-8 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
-              activeTab === t ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'
+              activeTab === t ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
             }`}
           >
             {t}
@@ -146,7 +146,7 @@ const BuyerDashboard = ({ user }) => {
       {activeTab === 'marketplace' && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {filteredProjects.length === 0 ? (
-            <div className="col-span-full py-20 text-center bg-white rounded-[2.5rem] border border-slate-200">
+            <div className="col-span-full py-20 text-center bg-white dark:bg-slate-800 rounded-[2.5rem] border border-slate-200 dark:border-slate-700">
               <span className="text-5xl mb-4 block">📦</span>
               <p className="text-slate-400 font-bold uppercase tracking-widest text-sm">No systems found in the registry.</p>
             </div>

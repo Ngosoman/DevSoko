@@ -22,8 +22,8 @@ const UploadProject = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-gray-600 text-lg">Checking access...</p>
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex items-center justify-center transition-colors duration-300">
+        <p className="text-slate-600 dark:text-slate-300 text-lg">Checking access...</p>
       </div>
     );
   }
@@ -31,7 +31,7 @@ const UploadProject = () => {
   return (
     <>
      
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex items-center justify-center p-4 transition-colors duration-300">
         <UploadForm />
       </div>
     </>

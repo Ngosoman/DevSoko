@@ -27,7 +27,7 @@ const Home = () => {
   }, [backgroundImages.length]);
 
   return (
-    <div className="bg-[#020617]">
+    <div className="bg-slate-950 dark:bg-slate-950">
       {/* Hero Section */}
       <div
         className="min-h-screen pt-24 flex flex-col items-center justify-center bg-cover bg-center px-6 text-center transition-all duration-1000 relative"
