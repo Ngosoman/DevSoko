@@ -6,7 +6,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'https://devsoko.onrender.com',
+        target: 'https://dev-soko.vercel.app',
         changeOrigin: true,
         secure: false
       }
