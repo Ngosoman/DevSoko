@@ -120,7 +120,7 @@ const ContactPage = () => {
                 <FaInstagram />
               </a>
               <a
-                href="https://www.linkedin.com/in/YourHandle"
+                href="https://www.linkedin.com/in/tom-mwambingu/"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="bg-blue-800 p-3 rounded-full text-white hover:bg-blue-600 transition"
