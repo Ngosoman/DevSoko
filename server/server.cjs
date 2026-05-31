@@ -7,6 +7,13 @@ const app = express();
 const port = 4000;
 
 app.use(cors());
+app.use((req, res, next) => {
+  res.setHeader(
+    'Content-Security-Policy',
+    "default-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none';"
+  );
+  next();
+});
 app.use(express.json());
 
 // ✅ Safaricom Daraja credentials

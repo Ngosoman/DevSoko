@@ -3,8 +3,20 @@ from django.http import HttpResponseForbidden
 from django.core.cache import cache
 import time
 import logging
+from django.conf import settings
 
 logger = logging.getLogger('payments')
+
+class ContentSecurityPolicyMiddleware:
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        response = self.get_response(request)
+        if not response.has_header('Content-Security-Policy'):
+            response['Content-Security-Policy'] = getattr(settings, 'CSP_POLICY', "default-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none';")
+        return response
+
 
 class AbuseProtectionMiddleware:
     def __init__(self, get_response):

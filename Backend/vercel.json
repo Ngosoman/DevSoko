@@ -5,8 +5,17 @@
       "use": "@vercel/python",
       "config": { "maxDuration": 60 }
     }
-  ],
-  "routes": [
+  ],  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none';"
+        }
+      ]
+    }
+  ],  "routes": [
     {
       "src": "/(.*)",
       "dest": "DevBackend/wsgi.py"

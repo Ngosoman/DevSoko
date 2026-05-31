@@ -68,6 +68,7 @@ REST_FRAMEWORK = {
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    'payments.middleware.ContentSecurityPolicyMiddleware',
     'payments.middleware.AbuseProtectionMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -157,6 +158,11 @@ SESSION_COOKIE_AGE = 3600  # 1 hour
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 
 # Security settings for production
+CSP_POLICY = _env(
+    'CSP_POLICY',
+    "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none';"
+)
+
 if not DEBUG:
     # Enforce HTTPS
     SECURE_SSL_REDIRECT = True
