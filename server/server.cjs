@@ -12,6 +12,7 @@ app.use((req, res, next) => {
     'Content-Security-Policy',
     "default-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none';"
   );
+  res.setHeader('X-Frame-Options', 'DENY');
   next();
 });
 app.use(express.json());

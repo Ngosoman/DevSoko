@@ -15,6 +15,8 @@ class ContentSecurityPolicyMiddleware:
         response = self.get_response(request)
         if not response.has_header('Content-Security-Policy'):
             response['Content-Security-Policy'] = getattr(settings, 'CSP_POLICY', "default-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none';")
+        if not response.has_header('X-Frame-Options'):
+            response['X-Frame-Options'] = getattr(settings, 'X_FRAME_OPTIONS', 'DENY')
         return response
 
 

@@ -163,6 +163,9 @@ CSP_POLICY = _env(
     "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none';"
 )
 
+# Always deny framing unless explicitly allowed.
+X_FRAME_OPTIONS = 'DENY'
+
 if not DEBUG:
     # Enforce HTTPS
     SECURE_SSL_REDIRECT = True
@@ -174,7 +177,6 @@ if not DEBUG:
     SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
     CSRF_COOKIE_SECURE = True
     SESSION_COOKIE_SECURE = True
-    X_FRAME_OPTIONS = 'DENY'
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
