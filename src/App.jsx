@@ -1,6 +1,7 @@
 import { Routes, Route, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
 import Navbar from "./Components/Shared/Navbar";
+import RequireAuth from "./Components/Shared/RequireAuth";
 import Home from "./Pages/Home";
 import Register from "./Pages/Register";
 import Login from "./Pages/Login";
@@ -47,11 +48,11 @@ function App() {
         <Route path="/login" element={<Login theme={theme} toggleTheme={toggleTheme} />} />
         <Route path="/upload" element={<UploadProject />} />
         <Route path="/projects" element={<ViewProjects />} />
-        <Route path="/dashboard" element={<BuyerDashboard />} />
-        <Route path="/buyer-dashboard" element={<BuyerDashboard />} />
-        <Route path="/seller-dashboard" element={<SellerDashboard />} />
+        <Route path="/dashboard" element={<RequireAuth><BuyerDashboard /></RequireAuth>} />
+        <Route path="/buyer-dashboard" element={<RequireAuth><BuyerDashboard /></RequireAuth>} />
+        <Route path="/seller-dashboard" element={<RequireAuth><SellerDashboard /></RequireAuth>} />
         <Route path="/admin-login" element={<AdminLogin />} /> 
-        <Route path="/admin-dashboard" element={<AdminDashboard />} /> 
+        <Route path="/admin-dashboard" element={<RequireAuth><AdminDashboard /></RequireAuth>} /> 
         <Route path="/checkout" element={<Checkout />} />
         <Route path="/project/:id" element={<ProjectDetails />} />
         <Route path='/ConnectPurchasePage' element={<ConnectPurchasePage />} />
