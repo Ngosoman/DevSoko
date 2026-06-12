@@ -65,6 +65,19 @@ const Navbar = ({ theme, toggleTheme }) => {
             Projects
           </NavLink>
 
+          <NavLink
+            to="/hire-developers"
+            className={({ isActive }) =>
+              `rounded-full px-4 py-2 text-sm font-semibold transition-colors duration-300 ${
+                isActive
+                  ? "bg-slate-100 text-slate-900"
+                  : "text-slate-700 hover:text-slate-900 hover:bg-slate-100"
+              }`
+            }
+          >
+            Hire Developers
+          </NavLink>
+
           {role === "seller" && (
             <NavLink
               to="/upload"
@@ -176,6 +189,20 @@ const Navbar = ({ theme, toggleTheme }) => {
               onClick={() => setIsMobileOpen(false)}
             >
               Projects
+            </NavLink>
+
+            <NavLink
+              to="/hire-developers"
+              className={({ isActive }) =>
+                `block rounded-2xl px-4 py-3 text-sm font-semibold transition-colors duration-300 ${
+                  isActive
+                    ? "bg-slate-100 text-slate-900"
+                    : "text-slate-700 hover:text-slate-900 hover:bg-slate-100"
+                }`
+              }
+              onClick={() => setIsMobileOpen(false)}
+            >
+              Hire Developers
             </NavLink>
 
             {role === "seller" && (

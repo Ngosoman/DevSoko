@@ -16,6 +16,7 @@ import AdminDashboard from "./Components/Admin/AdminDashboard";
 import SellerDashboard from "./Components/Seller/SellerDashboard";
 import BuyerDashboard from "./Components/Buyer/BuyerDashboard";
 import ContactPage from "./Pages/ContactPage";
+import HireDevelopers from "./Pages/HireDevelopers";
 
 function App() {
   const location = useLocation();
@@ -58,6 +59,7 @@ function App() {
         <Route path='/ConnectPurchasePage' element={<ConnectPurchasePage />} />
         <Route path='/ConnectPackageCard' element={<ConnectPackageCard />} />
         <Route path='/contactpage' element={<ContactPage/>} />
+        <Route path='/hire-developers' element={<HireDevelopers />} />
 
       </Routes>
       </>
