@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { supabase } from "../../supabaseClient";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
@@ -8,6 +8,7 @@ import {
   Loader2, 
   AlertCircle
 } from "lucide-react";
+import { ensureGoogleUserProfile, getDashboardPath, startGoogleOAuth } from "../../utils/googleAuth";
 
 const LoginForm = () => {
   const [email, setEmail] = useState("");
@@ -48,14 +49,9 @@ const LoginForm = () => {
 
   const handleGoogleLogin = async () => {
     setLoading(true);
+    setError("");
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: window.location.origin
-        }
-      });
-      if (error) throw error;
+      await startGoogleOAuth({ redirectPath: "/login" });
     } catch (err) {
       console.error("Google login error:", err);
       setError("Google login failed. Please try with your email.");
@@ -63,6 +59,28 @@ const LoginForm = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const completeGoogleLogin = async () => {
+      try {
+        const result = await ensureGoogleUserProfile({ defaultRole: "buyer" });
+
+        if (!cancelled && result?.role) {
+          navigate(getDashboardPath(result.role), { replace: true });
+        }
+      } catch (err) {
+        console.error("Google session completion error:", err);
+      }
+    };
+
+    completeGoogleLogin();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [navigate]);
 
   const redirectByRole = async (user) => {
     const { data } = await supabase

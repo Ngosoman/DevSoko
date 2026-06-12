@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "../supabaseClient";
 import { useNavigate } from "react-router-dom";
+import { motion as Motion } from "framer-motion";
 import {
   Loader2,
   AlertCircle,
@@ -10,6 +11,7 @@ import {
   Users,
   Star
 } from "lucide-react";
+import { ensureGoogleUserProfile, getDashboardPath, startGoogleOAuth } from "../utils/googleAuth";
 
 const Register = () => {
   const [email, setEmail] = useState("");
@@ -59,14 +61,12 @@ const Register = () => {
 
   const handleGoogleLogin = async () => {
     setLoading(true);
+    setError("");
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: window.location.origin
-        }
+      await startGoogleOAuth({
+        redirectPath: "/register",
+        role,
       });
-      if (error) throw error;
     } catch (err) {
       console.error("Google login error:", err);
       setError("Google login failed. Please try with your email.");
@@ -74,6 +74,31 @@ const Register = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const completeGoogleSignup = async () => {
+      try {
+        const result = await ensureGoogleUserProfile({
+          defaultRole: role,
+          allowRoleUpdate: true,
+        });
+
+        if (!cancelled && result?.role) {
+          navigate(getDashboardPath(result.role), { replace: true });
+        }
+      } catch (err) {
+        console.error("Google signup completion error:", err);
+      }
+    };
+
+    completeGoogleSignup();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [navigate, role]);
 
   const itemVariants = {
     hidden: { opacity: 0, y: 20 },
@@ -91,7 +116,7 @@ const Register = () => {
         </div>
 
         {/* Floating Terminal Window */}
-        <motion.div
+        <Motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.8, delay: 0.2 }}
@@ -133,10 +158,10 @@ const Register = () => {
             <div className="text-green-400">✓ Compiled successfully</div>
             <div className="text-green-400 animate-pulse">$ _</div>
           </div>
-        </motion.div>
+        </Motion.div>
 
         {/* Tech Icons */}
-        <motion.div
+        <Motion.div
           initial={{ opacity: 0, x: -50 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.8, delay: 0.5 }}
@@ -148,10 +173,10 @@ const Register = () => {
           <div className="w-12 h-12 bg-yellow-500/10 dark:bg-yellow-500/20 rounded-lg flex items-center justify-center backdrop-blur-sm border border-yellow-500/30 dark:border-yellow-500/40">
             <Zap className="w-6 h-6 text-yellow-400" />
           </div>
-        </motion.div>
+        </Motion.div>
 
         {/* Floating Stats */}
-        <motion.div
+        <Motion.div
           initial={{ opacity: 0, y: 50 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.8 }}
@@ -165,12 +190,12 @@ const Register = () => {
             <Star className="w-5 h-5 text-yellow-400" />
             <span className="text-sm">5000+ Projects</span>
           </div>
-        </motion.div>
+        </Motion.div>
       </div>
 
       {/* Right Side - Clean White Form */}
       <div className="w-1/2 bg-white dark:bg-slate-950 flex items-center justify-center p-12">
-        <motion.div
+        <Motion.div
           initial="hidden"
           animate="visible"
           variants={{
@@ -179,13 +204,13 @@ const Register = () => {
           className="w-full max-w-md space-y-8"
         >
           {/* Header */}
-          <motion.div variants={itemVariants} className="text-center space-y-2">
+          <Motion.div variants={itemVariants} className="text-center space-y-2">
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white font-['Inter']">Join DevSoko</h1>
             <p className="text-gray-600 dark:text-slate-400 text-sm">Connect with developers worldwide</p>
-          </motion.div>
+          </Motion.div>
 
           {/* Google Sign Up */}
-          <motion.button
+          <Motion.button
             variants={itemVariants}
             onClick={handleGoogleLogin}
             disabled={loading}
@@ -198,19 +223,19 @@ const Register = () => {
               <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="currentColor"/>
             </svg>
             <span>Continue with Google</span>
-          </motion.button>
+          </Motion.button>
 
           {/* OR Divider */}
-          <motion.div variants={itemVariants} className="flex items-center gap-4 py-4">
+          <Motion.div variants={itemVariants} className="flex items-center gap-4 py-4">
             <div className="flex-1 h-[1px] bg-gray-200 dark:bg-slate-700"></div>
             <span className="text-gray-500 dark:text-slate-400 text-sm font-medium">OR</span>
             <div className="flex-1 h-[1px] bg-gray-200 dark:bg-slate-700"></div>
-          </motion.div>
+          </Motion.div>
 
           {/* Registration Form */}
           <form onSubmit={handleRegister} className="space-y-6">
             {/* Email Field */}
-            <motion.div variants={itemVariants} className="space-y-2">
+            <Motion.div variants={itemVariants} className="space-y-2">
               <label className="text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-slate-400" htmlFor="email">
                 Email Address
               </label>
@@ -223,10 +248,10 @@ const Register = () => {
                 onChange={(e) => setEmail(e.target.value)}
                 required
               />
-            </motion.div>
+            </Motion.div>
 
             {/* Password Field */}
-            <motion.div variants={itemVariants} className="space-y-2">
+            <Motion.div variants={itemVariants} className="space-y-2">
               <label className="text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-slate-400" htmlFor="password">
                 Password
               </label>
@@ -241,10 +266,10 @@ const Register = () => {
                 required
               />
               <p className="text-xs text-gray-500">Minimum 8 characters</p>
-            </motion.div>
+            </Motion.div>
 
             {/* Role Selection */}
-            <motion.div variants={itemVariants} className="space-y-2">
+            <Motion.div variants={itemVariants} className="space-y-2">
               <label className="text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-slate-400" htmlFor="role">
                 Account Type
               </label>
@@ -258,34 +283,34 @@ const Register = () => {
                 <option value="buyer">Buyer - Hire developers</option>
                 <option value="seller">Seller - Offer services</option>
               </select>
-            </motion.div>
+            </Motion.div>
 
             {/* Error Message */}
             {error && (
-              <motion.div
+              <Motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 className="p-4 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-600 rounded-lg flex items-start gap-3 text-red-600 dark:text-red-300 text-sm"
               >
                 <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
                 <span>{error}</span>
-              </motion.div>
+              </Motion.div>
             )}
 
             {/* Success Message */}
             {success && (
-              <motion.div
+              <Motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 className="p-4 bg-green-50 dark:bg-emerald-950/40 border border-green-200 dark:border-emerald-600 rounded-lg flex items-start gap-3 text-green-600 dark:text-emerald-300 text-sm"
               >
                 <Check className="w-4 h-4 flex-shrink-0 mt-0.5" />
                 <span>Registration successful! Check your email to verify. Redirecting...</span>
-              </motion.div>
+              </Motion.div>
             )}
 
             {/* Submit Button */}
-            <motion.button
+            <Motion.button
               variants={itemVariants}
               type="submit"
               disabled={loading || success}
@@ -301,19 +326,19 @@ const Register = () => {
               ) : (
                 <span>Create Account</span>
               )}
-            </motion.button>
+            </Motion.button>
           </form>
 
           {/* Sign In Link */}
-          <motion.div variants={itemVariants} className="text-center pt-4">
+          <Motion.div variants={itemVariants} className="text-center pt-4">
             <p className="text-gray-600 dark:text-slate-400 text-sm">
               Already have an account?{" "}
               <a href="/login" className="font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors">
                 Sign in
               </a>
             </p>
-          </motion.div>
-        </motion.div>
+          </Motion.div>
+        </Motion.div>
       </div>
     </div>
   );
