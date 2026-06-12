@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 
 const topDevelopers = [
@@ -38,6 +39,186 @@ const topDevelopers = [
       "Helps teams ship safely with deployment support, automation, and cloud readiness.",
   },
 ];
+
+const initialFormState = {
+  name: "",
+  email: "",
+  company: "",
+  message: "",
+};
+
+const ContactInquiryForm = () => {
+  const [formData, setFormData] = useState(initialFormState);
+  const [errors, setErrors] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitStatus, setSubmitStatus] = useState("");
+
+  const validateForm = () => {
+    const nextErrors = {};
+
+    if (!formData.name.trim()) {
+      nextErrors.name = "Name is required.";
+    }
+
+    if (!formData.email.trim()) {
+      nextErrors.email = "Email is required.";
+    } else if (!/^\S+@\S+\.\S+$/.test(formData.email)) {
+      nextErrors.email = "Enter a valid email address.";
+    }
+
+    if (!formData.company.trim()) {
+      nextErrors.company = "Company is required.";
+    }
+
+    if (!formData.message.trim()) {
+      nextErrors.message = "Tell us what you want to build or hire for.";
+    } else if (formData.message.trim().length < 20) {
+      nextErrors.message = "Please add a little more detail about your hiring needs.";
+    }
+
+    return nextErrors;
+  };
+
+  const handleChange = (event) => {
+    const { name, value } = event.target;
+    setFormData((current) => ({ ...current, [name]: value }));
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    setSubmitStatus("");
+
+    const nextErrors = validateForm();
+    setErrors(nextErrors);
+
+    if (Object.keys(nextErrors).length > 0) {
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      // Replace this with the actual contact-system integration.
+      await new Promise((resolve) => setTimeout(resolve, 700));
+      console.log("Contact inquiry submitted:", formData);
+      setSubmitStatus("Thanks. Your request has been received and our team will reach out soon.");
+      setFormData(initialFormState);
+    } catch {
+      setSubmitStatus("Something went wrong while submitting your inquiry. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <section className="mx-auto max-w-7xl px-4 pt-14 sm:px-6 lg:px-8">
+      <div className="grid gap-8 lg:grid-cols-[1.05fr_0.95fr]">
+        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-8">
+          <p className="text-sm font-semibold uppercase tracking-[0.3em] text-blue-700 dark:text-blue-300">
+            Contact inquiry
+          </p>
+          <h2 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">
+            Tell us what talent you need
+          </h2>
+          <p className="mt-4 max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-300">
+            Send us your hiring requirements and we will match you with the best developer for the job.
+          </p>
+
+          <form className="mt-8 space-y-5" onSubmit={handleSubmit} noValidate>
+            <div className="grid gap-5 md:grid-cols-2">
+              <div>
+                <label htmlFor="name" className="block text-sm font-semibold text-slate-700 dark:text-slate-200">
+                  Name
+                </label>
+                <input
+                  id="name"
+                  name="name"
+                  type="text"
+                  value={formData.name}
+                  onChange={handleChange}
+                  placeholder="Your full name"
+                  className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-slate-900 outline-none transition focus:border-blue-500 focus:bg-white dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:focus:bg-slate-900"
+                />
+                {errors.name && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{errors.name}</p>}
+              </div>
+
+              <div>
+                <label htmlFor="email" className="block text-sm font-semibold text-slate-700 dark:text-slate-200">
+                  Email
+                </label>
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  placeholder="you@company.com"
+                  className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-slate-900 outline-none transition focus:border-blue-500 focus:bg-white dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:focus:bg-slate-900"
+                />
+                {errors.email && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{errors.email}</p>}
+              </div>
+            </div>
+
+            <div>
+              <label htmlFor="company" className="block text-sm font-semibold text-slate-700 dark:text-slate-200">
+                Company
+              </label>
+              <input
+                id="company"
+                name="company"
+                type="text"
+                value={formData.company}
+                onChange={handleChange}
+                placeholder="Company or project name"
+                className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-slate-900 outline-none transition focus:border-blue-500 focus:bg-white dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:focus:bg-slate-900"
+              />
+              {errors.company && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{errors.company}</p>}
+            </div>
+
+            <div>
+              <label htmlFor="message" className="block text-sm font-semibold text-slate-700 dark:text-slate-200">
+                Hiring requirements
+              </label>
+              <textarea
+                id="message"
+                name="message"
+                rows="6"
+                value={formData.message}
+                onChange={handleChange}
+                placeholder="Tell us the role, skills, timeline, budget, and any important project details."
+                className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-slate-900 outline-none transition focus:border-blue-500 focus:bg-white dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:focus:bg-slate-900"
+              />
+              {errors.message && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{errors.message}</p>}
+            </div>
+
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="inline-flex w-full items-center justify-center rounded-full bg-slate-900 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70 dark:bg-blue-500 dark:text-slate-950 dark:hover:bg-blue-400"
+            >
+              {isSubmitting ? "Sending inquiry..." : "Submit inquiry"}
+            </button>
+
+            {submitStatus && (
+              <p className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300">
+                {submitStatus}
+              </p>
+            )}
+          </form>
+        </div>
+
+        <div className="rounded-3xl border border-slate-200 bg-slate-900 p-6 text-white shadow-sm dark:border-slate-800 dark:bg-slate-950 sm:p-8">
+          <h3 className="text-2xl font-bold">Why contact us first?</h3>
+          <ul className="mt-5 space-y-4 text-sm leading-6 text-slate-300">
+            <li className="rounded-2xl bg-white/5 p-4">We shortlist the best fit based on your project goals.</li>
+            <li className="rounded-2xl bg-white/5 p-4">We confirm availability before introducing you to a developer.</li>
+            <li className="rounded-2xl bg-white/5 p-4">We help you move from inquiry to engagement without friction.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+  );
+};
 
 const HireDevelopers = () => {
   return (
@@ -147,6 +328,8 @@ const HireDevelopers = () => {
           ))}
         </div>
       </section>
+
+      <ContactInquiryForm />
 
       <section className="mx-auto max-w-7xl px-4 pt-14 sm:px-6 lg:px-8">
         <div className="rounded-3xl bg-slate-900 px-6 py-10 text-white shadow-2xl dark:bg-slate-800 sm:px-10 lg:px-12">
