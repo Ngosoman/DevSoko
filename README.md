@@ -63,12 +63,4 @@ The Hire Developers page is the main entry point for clients who want to bring i
 
 
 
-## Deployment Notes
-
-- The repository includes Vercel configuration for the frontend.
-- The backend includes a `Procfile` and deployment guidance in `Backend/DEPLOYMENT.md`.
-- Production deployment should use secure environment variables and a public callback URL for M-Pesa.
-
-
-
 
