@@ -62,6 +62,8 @@ function App() {
         <Route path='/contactpage' element={<ContactPage/>} />
         <Route path='/hire-developers' element={<HireDevelopers />} />
         <Route path='/growth-room' element={<DevSokoGrowthRoom />} />
+        <Route path='/devsokogrowthroom' element={<DevSokoGrowthRoom />} />
+        <Route path='/Devsokogrowthroom' element={<DevSokoGrowthRoom />} />
 
       </Routes>
       </>
