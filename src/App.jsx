@@ -17,6 +17,7 @@ import SellerDashboard from "./Components/Seller/SellerDashboard";
 import BuyerDashboard from "./Components/Buyer/BuyerDashboard";
 import ContactPage from "./Pages/ContactPage";
 import HireDevelopers from "./Pages/HireDevelopers";
+import DevSokoGrowthRoom from "./Shares/Devsokogrowthroom";
 
 function App() {
   const location = useLocation();
@@ -60,6 +61,7 @@ function App() {
         <Route path='/ConnectPackageCard' element={<ConnectPackageCard />} />
         <Route path='/contactpage' element={<ContactPage/>} />
         <Route path='/hire-developers' element={<HireDevelopers />} />
+        <Route path='/growth-room' element={<DevSokoGrowthRoom />} />
 
       </Routes>
       </>
