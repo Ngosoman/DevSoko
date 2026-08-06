@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../supabaseClient';
 import DashboardSkeleton from '../Shared/DashboardSkeleton';
 import UploadForm from '../Project/UploadForm';
-import { createActivityLog, getCurrentUser, getReputationLevel, getUserProfile } from '../../lib/supabaseMarketplace';
+import { addDcoinTransaction, createActivityLog, getCurrentUser, getReputationLevel, getUserProfile, updateWalletBalance } from '../../lib/supabaseMarketplace';
 
 const navItems = [
   { id: 'overview', label: 'Overview' },
@@ -24,6 +24,13 @@ const dcoinPackages = [
   { id: 'creator', name: 'Creator', coins: 120, priceKes: 450 },
   { id: 'studio', name: 'Studio', coins: 300, priceKes: 900 },
 ];
+
+const paymentMethodLabels = {
+  mpesa: 'M-Pesa',
+  airtel_money: 'AirtelMoney',
+  visa: 'VisaCard',
+  mastercard: 'Mastercard',
+};
 
 const defaultSellerSettings = {
   emailNotifications: true,
@@ -60,6 +67,21 @@ const writeJsonStorage = (key, value) => {
   localStorage.setItem(key, JSON.stringify(value));
 };
 
+const getBackendBaseUrl = () => {
+  const raw = `${import.meta.env.VITE_BACKEND_URL || 'http://127.0.0.1:8000'}`.trim();
+  let normalized = raw.replace(/\/$/, '');
+
+  if (normalized.startsWith('https://127.0.0.1') || normalized.startsWith('https://localhost')) {
+    normalized = normalized.replace(/^https:/, 'http:');
+  }
+
+  if (!/^https?:\/\//i.test(normalized)) {
+    normalized = `http://${normalized}`;
+  }
+
+  return normalized.replace(/\/$/, '');
+};
+
 const SellerDashboard = () => {
   const [activeSection, setActiveSection] = useState('overview');
   const [projects, setProjects] = useState([]);
@@ -74,6 +96,13 @@ const SellerDashboard = () => {
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
   const [buyingPackageId, setBuyingPackageId] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('mpesa');
+  const [paymentMethods, setPaymentMethods] = useState([
+    { code: 'mpesa', label: 'M-Pesa' },
+    { code: 'airtel_money', label: 'AirtelMoney' },
+    { code: 'visa', label: 'VisaCard' },
+    { code: 'mastercard', label: 'Mastercard' },
+  ]);
   const [profileForm, setProfileForm] = useState({
     fullName: '',
     phone: '',
@@ -130,6 +159,23 @@ const SellerDashboard = () => {
       setWallet(walletData || { balance: 0 });
       setProjects(projectData || []);
       setSales(orderData || []);
+
+      try {
+        const backendBase = getBackendBaseUrl();
+        const methodResponse = await fetch(`${backendBase}/api/pesapal/methods/`);
+        if (methodResponse.ok) {
+          const methodData = await methodResponse.json();
+          if (Array.isArray(methodData?.methods) && methodData.methods.length > 0) {
+            setPaymentMethods(methodData.methods);
+            const firstCode = methodData.methods[0]?.code;
+            if (firstCode && !methodData.methods.some((item) => item.code === paymentMethod)) {
+              setPaymentMethod(firstCode);
+            }
+          }
+        }
+      } catch (methodError) {
+        console.warn('pesapal methods fetch skipped', methodError);
+      }
     } catch (error) {
       console.error('seller dashboard error', error);
       setError('Unable to load seller dashboard data right now.');
@@ -150,6 +196,84 @@ const SellerDashboard = () => {
 
     return () => clearInterval(intervalId);
   }, [currentUser, settingsForm.autoRefresh]);
+
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const syncPaidTopupFromReturn = async () => {
+      const params = new URLSearchParams(window.location.search);
+      const merchantReference =
+        params.get('OrderMerchantReference') ||
+        params.get('orderMerchantReference') ||
+        params.get('merchant_reference');
+
+      if (!merchantReference) return;
+
+      try {
+        const backendBase = getBackendBaseUrl();
+        const response = await fetch(`${backendBase}/api/pesapal/status/${encodeURIComponent(merchantReference)}/`);
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data?.detail || 'Could not verify payment status.');
+        }
+
+        const tx = data?.transaction;
+        const paid = String(tx?.status || '').toLowerCase() === 'completed';
+        const creditKey = `seller-topup-credited-${merchantReference}`;
+        const alreadyCredited = localStorage.getItem(creditKey) === '1';
+
+        if (paid && !alreadyCredited) {
+          const matchingIntent = safePendingTopups.find((item) => item.merchantReference === merchantReference);
+          const coinsToCredit = matchingIntent?.coins || dcoinPackages.find((pkg) => Number(pkg.priceKes) === Number(tx?.amount))?.coins || 0;
+
+          if (coinsToCredit > 0) {
+            await updateWalletBalance(currentUser.id, coinsToCredit);
+            await addDcoinTransaction({
+              userId: currentUser.id,
+              amount: coinsToCredit,
+              type: 'credit',
+              reason: 'topup',
+              metadata: {
+                provider: 'pesapal',
+                merchantReference,
+                orderTrackingId: tx?.order_tracking_id || null,
+              },
+            });
+            localStorage.setItem(creditKey, '1');
+          }
+        }
+
+        const nextTopups = safePendingTopups.map((item) => {
+          if (item.merchantReference !== merchantReference) return item;
+          return {
+            ...item,
+            status: tx?.status || item.status,
+            orderTrackingId: tx?.order_tracking_id || item.orderTrackingId,
+            checkoutUrl: tx?.checkout_url || item.checkoutUrl,
+          };
+        });
+
+        setPendingTopups(nextTopups);
+        writeJsonStorage(`seller-pending-topups-${currentUser.id}`, nextTopups);
+
+        if (paid) {
+          setMessage('Payment confirmed. D-Coins have been added to your wallet.');
+          fetchData({ silent: true });
+        } else {
+          setMessage('Payment status received. We will update your wallet once payment is completed.');
+        }
+      } catch (syncError) {
+        console.error('pesapal status sync error', syncError);
+        setError(syncError.message || 'Could not verify payment status.');
+      } finally {
+        const cleanUrl = `${window.location.pathname}${window.location.hash || ''}`;
+        window.history.replaceState({}, document.title, cleanUrl);
+      }
+    };
+
+    syncPaidTopupFromReturn();
+  }, [currentUser]);
 
   const stats = useMemo(() => {
     const totalEarnings = sales.reduce((sum, order) => sum + Number(order.amount || 0), 0);
@@ -286,12 +410,48 @@ const SellerDashboard = () => {
     setMessage('');
 
     try {
+      const backendBase = getBackendBaseUrl();
+      const accountReference = `DCOIN-${currentUser.id.slice(0, 8)}-${Date.now()}`;
+      const callbackUrl = `${window.location.origin}/seller-dashboard`;
+
+      const checkoutResponse = await fetch(`${backendBase}/api/pesapal/submit-order/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          amount: pkg.priceKes,
+          description: `${pkg.name} D-Coins top-up (${pkg.coins} coins)`,
+          account_reference: accountReference,
+          payment_method: paymentMethod,
+          currency: 'KES',
+          email: currentUser.email,
+          callback_url: callbackUrl,
+        }),
+      });
+
+      const checkoutData = await checkoutResponse.json();
+      if (!checkoutResponse.ok) {
+        throw new Error(checkoutData?.detail || 'Unable to start checkout.');
+      }
+
+      const checkoutUrl = checkoutData?.checkout_url;
+      const merchantReference = checkoutData?.merchant_reference;
+
+      if (!checkoutUrl || !merchantReference) {
+        throw new Error('Checkout response is missing redirect details.');
+      }
+
       const intent = {
         packageId: pkg.id,
         packageName: pkg.name,
         coins: pkg.coins,
         priceKes: pkg.priceKes,
-        status: 'pending-payment-gateway',
+        paymentMethod,
+        merchantReference,
+        checkoutUrl,
+        orderTrackingId: checkoutData?.order_tracking_id || null,
+        status: 'processing',
         createdAt: new Date().toISOString(),
       };
 
@@ -303,16 +463,16 @@ const SellerDashboard = () => {
         await createActivityLog({
           userId: currentUser.id,
           action: 'dcoin_purchase_intent_created',
-          details: `${pkg.name} (${pkg.coins} D for KES ${pkg.priceKes})`,
+          details: `${pkg.name} (${pkg.coins} D for KES ${pkg.priceKes}) via ${paymentMethodLabels[paymentMethod] || paymentMethod}`,
         });
       } catch (activityError) {
         console.warn('activity log skipped for dcoin intent', activityError);
       }
 
-      setMessage(`Purchase intent created for ${pkg.name}. Payment gateway integration will complete this top-up.`);
+      window.location.href = checkoutUrl;
     } catch (buyError) {
       console.error('dcoin buy intent error', buyError);
-      setError('Could not create buy intent. Please try again.');
+      setError(buyError.message || 'Could not create buy intent. Please try again.');
     } finally {
       setBuyingPackageId('');
     }
@@ -455,6 +615,19 @@ const SellerDashboard = () => {
 
           {activeSection === 'dcoins' && (
             <div className="space-y-4">
+              <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                <label className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-500">Payment option</label>
+                <select
+                  value={paymentMethod}
+                  onChange={(event) => setPaymentMethod(event.target.value)}
+                  className="mt-3 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 outline-none transition focus:border-blue-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                >
+                  {paymentMethods.map((method) => (
+                    <option key={method.code} value={method.code}>{method.label}</option>
+                  ))}
+                </select>
+              </div>
+
               <div className="grid gap-4 md:grid-cols-2">
                 {dcoinPackages.map((pkg) => (
                   <div key={pkg.id} className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
@@ -485,10 +658,13 @@ const SellerDashboard = () => {
                           <div>
                             <p className="text-sm font-bold text-slate-900 dark:text-slate-100">{intent.packageName} • {intent.coins} D</p>
                             <p className="mt-1 text-xs text-slate-500">{new Date(intent.createdAt).toLocaleString()}</p>
+                            <p className="mt-1 text-xs text-slate-500">Method: {paymentMethodLabels[intent.paymentMethod] || intent.paymentMethod || 'N/A'}</p>
                           </div>
                           <div className="text-right">
                             <p className="text-sm font-black text-blue-700">KES {intent.priceKes}</p>
-                            <p className="text-xs uppercase tracking-[0.2em] text-amber-600">Pending</p>
+                            <p className={`text-xs uppercase tracking-[0.2em] ${String(intent.status).toLowerCase() === 'completed' ? 'text-emerald-600' : 'text-amber-600'}`}>
+                              {String(intent.status || 'pending')}
+                            </p>
                           </div>
                         </div>
                       </div>

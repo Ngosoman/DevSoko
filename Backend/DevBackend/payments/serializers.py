@@ -96,6 +96,7 @@ class PesapalCheckoutSerializer(serializers.Serializer):
     email = serializers.EmailField(required=False, allow_blank=True)
     first_name = serializers.CharField(max_length=100, required=False, allow_blank=True)
     last_name = serializers.CharField(max_length=100, required=False, allow_blank=True)
+    callback_url = serializers.URLField(required=False, allow_blank=True)
 
     def validate_currency(self, value):
         return value.upper()

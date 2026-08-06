@@ -46,6 +46,13 @@ def _safe_json(response):
         return {'raw': response.text}
 
 
+def _request_user_or_none(request):
+    user = getattr(request, 'user', None)
+    if user and getattr(user, 'is_authenticated', False):
+        return user
+    return None
+
+
 def _get_mpesa_access_token():
     if not settings.MPESA_CONSUMER_KEY or not settings.MPESA_CONSUMER_SECRET:
         return None
@@ -137,7 +144,7 @@ def pesapal_register_ipn(request):
 
 
 @api_view(['POST'])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])
 @ratelimit(key='user', rate='10/m', method='POST', block=True)
 def pesapal_submit_order(request):
     serializer = PesapalCheckoutSerializer(data=request.data)
@@ -156,14 +163,20 @@ def pesapal_submit_order(request):
 
     merchant_reference = f"DEV-{uuid.uuid4().hex[:24].upper()}"
 
+    auth_user = _request_user_or_none(request)
+
     order = Order.objects.create(
-        buyer=request.user,
+        buyer=auth_user,
         product=data['account_reference'],
         status='pending',
     )
 
-    callback_url = settings.PESAPAL_CALLBACK_URL
+    callback_url = data.get('callback_url') or settings.PESAPAL_CALLBACK_URL
     ipn_id = settings.PESAPAL_IPN_ID
+
+    fallback_email = ''
+    if auth_user:
+        fallback_email = auth_user.email
 
     payload = {
         'id': merchant_reference,
@@ -173,11 +186,11 @@ def pesapal_submit_order(request):
         'callback_url': callback_url,
         'notification_id': ipn_id,
         'billing_address': {
-            'email_address': data.get('email') or request.user.email,
+            'email_address': data.get('email') or fallback_email,
             'phone_number': _normalize_phone(data.get('phone_number')),
             'country_code': 'KE',
-            'first_name': data.get('first_name') or request.user.first_name or 'DevSoko',
-            'last_name': data.get('last_name') or request.user.last_name or 'User',
+            'first_name': data.get('first_name') or (auth_user.first_name if auth_user else '') or 'DevSoko',
+            'last_name': data.get('last_name') or (auth_user.last_name if auth_user else '') or 'User',
         },
     }
 
@@ -189,8 +202,15 @@ def pesapal_submit_order(request):
     response = requests.post(settings.PESAPAL_SUBMIT_ORDER_URL, json=payload, headers=headers, timeout=30)
     response_data = _safe_json(response)
 
+    transaction_user = auth_user
+    if not transaction_user:
+        transaction_user, _ = User.objects.get_or_create(
+            username='pesapal_guest',
+            defaults={'email': data.get('email', 'guest@devsoko.local')},
+        )
+
     transaction = PesapalTransaction.objects.create(
-        user=request.user,
+        user=transaction_user,
         order=order,
         merchant_reference=merchant_reference,
         payment_method=data['payment_method'],
@@ -228,11 +248,11 @@ def pesapal_submit_order(request):
 
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])
 @ratelimit(key='user', rate='20/m', method='GET', block=True)
 def pesapal_transaction_status(request, merchant_reference):
     try:
-        tx = PesapalTransaction.objects.get(merchant_reference=merchant_reference, user=request.user)
+        tx = PesapalTransaction.objects.get(merchant_reference=merchant_reference)
     except PesapalTransaction.DoesNotExist:
         return Response({'detail': 'Transaction not found'}, status=status.HTTP_404_NOT_FOUND)
 
