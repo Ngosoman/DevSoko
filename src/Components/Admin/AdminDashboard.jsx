@@ -76,12 +76,14 @@ const AdminDashboard = () => {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState(null);
+  const [adminUserId, setAdminUserId] = useState(null);
   const [adminSettings, setAdminSettings] = useState(DEFAULT_ADMIN_SETTINGS);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
   const [editingDeveloperId, setEditingDeveloperId] = useState(null);
   const [developerForm, setDeveloperForm] = useState({
+    user_id: "",
     full_name: "",
     title: "",
     bio: "",
@@ -100,6 +102,7 @@ const AdminDashboard = () => {
       }
 
       const authUser = await getCurrentUser();
+      setAdminUserId(authUser?.id || null);
       const [profileData, projectData, orderData, profileList, settingsData, developerList] = await Promise.all([
         getUserProfile(authUser.id),
         listAllProjects(),
@@ -301,6 +304,7 @@ const AdminDashboard = () => {
 
   const resetDeveloperForm = () => {
     setDeveloperForm({
+      user_id: adminUserId || "",
       full_name: "",
       title: "",
       bio: "",
@@ -315,6 +319,7 @@ const AdminDashboard = () => {
   const handleEditDeveloper = (developer) => {
     setEditingDeveloperId(developer.id);
     setDeveloperForm({
+      user_id: developer.user_id || adminUserId || "",
       full_name: developer.full_name || "",
       title: developer.title || "",
       bio: developer.bio || "",
@@ -335,6 +340,7 @@ const AdminDashboard = () => {
 
     const payload = {
       ...(editingDeveloperId ? { id: editingDeveloperId } : {}),
+      user_id: developerForm.user_id || adminUserId,
       full_name: developerForm.full_name.trim(),
       title: developerForm.title.trim(),
       bio: developerForm.bio.trim(),
@@ -349,6 +355,11 @@ const AdminDashboard = () => {
       return;
     }
 
+    if (!payload.user_id) {
+      setStatusMessage("Unable to identify admin session. Please refresh and try again.");
+      return;
+    }
+
     try {
       await upsertDeveloperProfile(payload);
       setStatusMessage(editingDeveloperId ? "Developer profile updated." : "Developer profile created.");
@@ -356,7 +367,7 @@ const AdminDashboard = () => {
       await refreshData({ silent: true });
     } catch (error) {
       console.error("Developer save error:", error);
-      setStatusMessage("Unable to save developer profile.");
+      setStatusMessage(`Unable to save developer profile: ${error?.message || "Unknown error"}`);
     }
   };
 
@@ -376,6 +387,7 @@ const AdminDashboard = () => {
     try {
       await upsertDeveloperProfile({
         ...developer,
+        user_id: developer.user_id || adminUserId,
         featured: !developer.featured,
       });
       setStatusMessage(developer.featured ? "Developer removed from featured list." : "Developer marked as featured.");
