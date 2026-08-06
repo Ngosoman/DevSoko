@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../supabaseClient";
+import { getUserProfile } from "../lib/supabaseMarketplace";
 
 const useUserRole = () => {
   const [role, setRole] = useState(null);
@@ -13,15 +14,8 @@ const useUserRole = () => {
         return;
       }
 
-      const { data } = await supabase
-        .from('users')
-        .select('role')
-        .eq('id', user.id)
-        .single();
-
-      if (data) {
-        setRole(data.role);
-      }
+      const profile = await getUserProfile(user.id);
+      setRole(profile?.role || "buyer");
       setLoading(false);
     };
 

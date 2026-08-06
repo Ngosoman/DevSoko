@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { supabase } from "../../supabaseClient";
+import { getUserProfile } from "../../lib/supabaseMarketplace";
 
-const RequireAuth = ({ children }) => {
+const RequireAuth = ({ children, allowedRoles = null }) => {
   const [checking, setChecking] = useState(true);
   const [user, setUser] = useState(null);
+  const [role, setRole] = useState(null);
   const location = useLocation();
 
   useEffect(() => {
@@ -14,6 +16,12 @@ const RequireAuth = ({ children }) => {
         const { data: { user } } = await supabase.auth.getUser();
         if (!mounted) return;
         setUser(user);
+
+        if (user) {
+          const profile = await getUserProfile(user.id);
+          if (!mounted) return;
+          setRole(profile?.role || "buyer");
+        }
       } finally {
         if (mounted) setChecking(false);
       }
@@ -30,6 +38,16 @@ const RequireAuth = ({ children }) => {
 
   if (!user) {
     return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  if (allowedRoles && !allowedRoles.includes(role)) {
+    const redirectPath = role === "admin"
+      ? "/admin-dashboard"
+      : role === "seller"
+        ? "/seller-dashboard"
+        : "/buyer-dashboard";
+
+    return <Navigate to={redirectPath} replace />;
   }
 
   return children;

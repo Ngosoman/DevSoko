@@ -1,44 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-
-const topDevelopers = [
-  {
-    name: "Tom Mwambingu",
-    role: "Full-Stack Engineer",
-    specialty: "React, Django, APIs, Frontend, Backend",
-    experience: "3+ years",
-    rate: "From $10/hr",
-    summary:
-      "Strong fit for marketplace builds, dashboards, and end-to-end product work.",
-  },
-  {
-    name: "Eddy Frank",
-    role: "Mobile & Frontend Developer",
-    specialty: "React Native, Vite, UI systems",
-    experience: "3+ years",
-    rate: "From $15/hr",
-    summary:
-      "Best for polished customer-facing experiences and fast-moving product teams.",
-  },
-  {
-    name: "Shem Oduor",
-    role: "Backend Engineer",
-    specialty: "Python, DRF, payments",
-    experience: "3+ years",
-    rate: "From $20/hr",
-    summary:
-      "Ideal for robust APIs, payment integrations, and secure platform workflows.",
-  },
-  {
-    name: "Billy Kemboi",
-    role: "Product & DevOps Engineer",
-    specialty: "Deployment, CI/CD, cloud setup",
-    experience: "3+ years",
-    rate: "From $20/hr",
-    summary:
-      "Helps teams ship safely with deployment support, automation, and cloud readiness.",
-  },
-];
+import { listDeveloperProfiles } from "../lib/supabaseMarketplace";
 
 const initialFormState = {
   name: "",
@@ -221,6 +183,27 @@ const ContactInquiryForm = () => {
 };
 
 const HireDevelopers = () => {
+  const [developers, setDevelopers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const loadDevelopers = async () => {
+      try {
+        setLoading(true);
+        const profiles = await listDeveloperProfiles();
+        setDevelopers(profiles);
+      } catch (err) {
+        console.error("Failed to load developer profiles", err);
+        setError("We could not load featured developers right now. Please try again shortly.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadDevelopers();
+  }, []);
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 pt-28 pb-16 transition-colors duration-300">
       <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -293,44 +276,58 @@ const HireDevelopers = () => {
           </p>
         </div>
 
-        <div className="mt-10 grid gap-6 md:grid-cols-2 xl:grid-cols-4">
-          {topDevelopers.map((developer) => (
-            <article
-              key={developer.name}
-              className="group rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl dark:border-slate-800 dark:bg-slate-900"
-            >
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-900 text-xl font-black text-white dark:bg-blue-500 dark:text-slate-950">
-                {developer.name.charAt(0)}
-              </div>
-              <h3 className="mt-5 text-xl font-bold">{developer.name}</h3>
-              <p className="mt-1 text-sm font-semibold text-blue-700 dark:text-blue-300">
-                {developer.role}
-              </p>
-              <p className="mt-4 text-sm leading-6 text-slate-600 dark:text-slate-300">
-                {developer.summary}
-              </p>
-
-              <div className="mt-5 space-y-3 text-sm text-slate-600 dark:text-slate-300">
-                <div className="rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-950/70">
-                  <span className="font-semibold text-slate-900 dark:text-slate-100">Specialty:</span> {developer.specialty}
-                </div>
-                <div className="rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-950/70">
-                  <span className="font-semibold text-slate-900 dark:text-slate-100">Experience:</span> {developer.experience}
-                </div>
-                <div className="rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-950/70">
-                  <span className="font-semibold text-slate-900 dark:text-slate-100">Starting rate:</span> {developer.rate}
-                </div>
-              </div>
-
-              <Link
-                to="/contactpage"
-                className="mt-6 inline-flex w-full items-center justify-center rounded-full border border-slate-300 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+        {loading ? (
+          <div className="mt-10 rounded-3xl border border-dashed border-slate-300 bg-white p-10 text-center text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
+            Loading featured developers...
+          </div>
+        ) : error ? (
+          <div className="mt-10 rounded-3xl border border-red-200 bg-red-50 p-10 text-center text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300">
+            {error}
+          </div>
+        ) : developers.length === 0 ? (
+          <div className="mt-10 rounded-3xl border border-dashed border-slate-300 bg-white p-10 text-center text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
+            No featured developers have been added yet. Check back soon.
+          </div>
+        ) : (
+          <div className="mt-10 grid gap-6 md:grid-cols-2 xl:grid-cols-4">
+            {developers.map((developer) => (
+              <article
+                key={developer.id}
+                className="group rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl dark:border-slate-800 dark:bg-slate-900"
               >
-                Contact us to hire
-              </Link>
-            </article>
-          ))}
-        </div>
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-900 text-xl font-black text-white dark:bg-blue-500 dark:text-slate-950">
+                  {(developer.name || developer.full_name || developer.title || 'D').charAt(0)}
+                </div>
+                <h3 className="mt-5 text-xl font-bold">{developer.name || developer.full_name || developer.title || 'Developer'}</h3>
+                <p className="mt-1 text-sm font-semibold text-blue-700 dark:text-blue-300">
+                  {developer.role || developer.specialty || 'Developer'}
+                </p>
+                <p className="mt-4 text-sm leading-6 text-slate-600 dark:text-slate-300">
+                  {developer.summary || developer.bio || 'Featured developer profile coming soon.'}
+                </p>
+
+                <div className="mt-5 space-y-3 text-sm text-slate-600 dark:text-slate-300">
+                  <div className="rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-950/70">
+                    <span className="font-semibold text-slate-900 dark:text-slate-100">Specialty:</span> {developer.speciality || developer.specialty || 'General development'}
+                  </div>
+                  <div className="rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-950/70">
+                    <span className="font-semibold text-slate-900 dark:text-slate-100">Experience:</span> {developer.experience || 'Available'}
+                  </div>
+                  <div className="rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-950/70">
+                    <span className="font-semibold text-slate-900 dark:text-slate-100">Starting rate:</span> {developer.rate || 'Available on request'}
+                  </div>
+                </div>
+
+                <Link
+                  to="/contactpage"
+                  className="mt-6 inline-flex w-full items-center justify-center rounded-full border border-slate-300 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+                >
+                  Contact us to hire
+                </Link>
+              </article>
+            ))}
+          </div>
+        )}
       </section>
 
       <ContactInquiryForm />

@@ -12,6 +12,34 @@ import {
   Star
 } from "lucide-react";
 import { ensureGoogleUserProfile, getDashboardPath, startGoogleOAuth } from "../utils/googleAuth";
+import { ensureWallet, upsertProfile } from "../lib/supabaseMarketplace";
+
+const getFriendlyAuthError = (error) => {
+  const message = error?.message || "";
+  const lower = message.toLowerCase();
+
+  if (lower.includes("rate limit") || lower.includes("too many requests") || lower.includes("429")) {
+    return "Too many sign-up attempts. Please wait a minute and try again, or use Google sign-in.";
+  }
+
+  if (lower.includes("invalid email") || lower.includes("email invalid")) {
+    return "Please enter a valid email address.";
+  }
+
+  if (lower.includes("password") && lower.includes("weak")) {
+    return "Please use a stronger password with at least 8 characters.";
+  }
+
+  if (lower.includes("already registered") || lower.includes("already exists") || lower.includes("user already")) {
+    return "An account with this email already exists. Please sign in instead.";
+  }
+
+  if (error?.status === 404 || lower.includes("not found") || lower.includes("relation") || lower.includes("missing")) {
+    return "The authentication service is not configured correctly. Please verify your Supabase URL and anon key in the environment settings.";
+  }
+
+  return message || "Registration failed. Please try again.";
+};
 
 const Register = () => {
   const [email, setEmail] = useState("");
@@ -31,29 +59,30 @@ const Register = () => {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/login`,
+        },
       });
 
       if (error) throw error;
 
-      // Save user role & email to Supabase users table
-      const { error: insertError } = await supabase
-        .from('users')
-        .insert({
-          id: data.user.id,
+      if (data?.user) {
+        await upsertProfile({
+          userId: data.user.id,
           email,
           role,
+          fullName: email.split("@")[0],
         });
+        await ensureWallet(data.user.id);
+      }
 
-      if (insertError) throw insertError;
-
-      console.log(" User registered and saved to Supabase.");
       setSuccess(true);
       setTimeout(() => {
         navigate("/login");
-      }, 2000);
+      }, 2200);
     } catch (err) {
-      console.error("Registration failed:", err.message);
-      setError(err.message);
+      console.error("Registration failed:", err);
+      setError(getFriendlyAuthError(err));
     } finally {
       setLoading(false);
     }

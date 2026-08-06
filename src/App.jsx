@@ -51,11 +51,11 @@ function App() {
         <Route path="/login" element={<Login theme={theme} toggleTheme={toggleTheme} />} />
         <Route path="/upload" element={<UploadProject />} />
         <Route path="/projects" element={<ViewProjects />} />
-        <Route path="/dashboard" element={<RequireAuth><BuyerDashboard /></RequireAuth>} />
-        <Route path="/buyer-dashboard" element={<RequireAuth><BuyerDashboard /></RequireAuth>} />
-        <Route path="/seller-dashboard" element={<RequireAuth><SellerDashboard /></RequireAuth>} />
+        <Route path="/dashboard" element={<RequireAuth allowedRoles={["buyer"]}><BuyerDashboard /></RequireAuth>} />
+        <Route path="/buyer-dashboard" element={<RequireAuth allowedRoles={["buyer"]}><BuyerDashboard /></RequireAuth>} />
+        <Route path="/seller-dashboard" element={<RequireAuth allowedRoles={["seller"]}><SellerDashboard /></RequireAuth>} />
         <Route path="/admin-login" element={<AdminLogin />} /> 
-        <Route path="/admin-dashboard" element={<RequireAuth><AdminDashboard /></RequireAuth>} /> 
+        <Route path="/admin-dashboard" element={<RequireAuth allowedRoles={["admin"]}><AdminDashboard /></RequireAuth>} /> 
         <Route path="/checkout" element={<Checkout />} />
         <Route path="/project/:id" element={<ProjectDetails />} />
         <Route path='/ConnectPurchasePage' element={<ConnectPurchasePage />} />

@@ -2,6 +2,21 @@ import { useState } from "react";
 import { supabase } from "../../supabaseClient";
 import { useNavigate } from "react-router-dom";
 
+const getFriendlyAuthError = (error) => {
+  const message = error?.message || "";
+  const lower = message.toLowerCase();
+
+  if (lower.includes("rate limit") || lower.includes("too many requests") || lower.includes("429")) {
+    return "Too many sign-up attempts. Please wait a minute and try again, or use Google sign-in.";
+  }
+
+  if (error?.status === 404 || lower.includes("not found") || lower.includes("relation") || lower.includes("missing")) {
+    return "The authentication service is not configured correctly. Please verify your Supabase URL and anon key in the environment settings.";
+  }
+
+  return message || "Registration failed. Please try again.";
+};
+
 const RegisterForm = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -19,27 +34,21 @@ const RegisterForm = () => {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/login`,
+        },
       });
 
       if (error) throw error;
 
-      // Save user role & email to Supabase users table
-      const { error: insertError } = await supabase
-        .from('users')
-        .insert({
-          id: data.user.id,
-          email,
-          role,
-        });
-
-      if (insertError) throw insertError;
-
-      console.log("User registered and saved to Supabase.");
-      alert("Registration successful! Please check your email to verify your account before logging in.");
-      navigate("/login");
+      if (data?.user) {
+        console.log("User registered and saved to Supabase.");
+        alert("Registration successful! Please check your email to verify your account before logging in.");
+        navigate("/login");
+      }
     } catch (err) {
-      console.error("Registration failed:", err.message);
-      setError(err.message);
+      console.error("Registration failed:", err);
+      setError(getFriendlyAuthError(err));
     } finally {
       setLoading(false);
     }

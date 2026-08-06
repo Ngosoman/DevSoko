@@ -1,140 +1,104 @@
-
-import React, { useState, useEffect, useMemo } from 'react';
-import { supabase } from '../../supabaseClient';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '../../supabaseClient';
 import DashboardSkeleton from '../Shared/DashboardSkeleton';
+import UploadForm from '../Project/UploadForm';
+import { getCurrentUser, getReputationLevel, getUserProfile } from '../../lib/supabaseMarketplace';
 
-// Real-world storage helpers for DevSoko - now using Supabase
-const getMyProjects = async (userId) => {
-  const { data, error } = await supabase.from('projects').select('*').eq('seller_id', userId);
-  if (error) throw error;
-  return data || [];
-};
+const navItems = [
+  { id: 'overview', label: 'Overview' },
+  { id: 'projects', label: 'My Projects' },
+  { id: 'upload', label: 'Upload Project' },
+  { id: 'sales', label: 'Sales' },
+  { id: 'wallet', label: 'Wallet' },
+  { id: 'dcoins', label: 'D-Coins' },
+  { id: 'reputation', label: 'Reputation' },
+  { id: 'notifications', label: 'Notifications' },
+  { id: 'profile', label: 'Profile' },
+  { id: 'settings', label: 'Settings' },
+];
 
-const getPurchases = async (userId) => {
-  const { data, error } = await supabase.from('purchases').select('*, projects(*)').eq('seller_id', userId);
-  if (error) throw error;
-  return data || [];
-};
-
-const saveMyProjects = () => {
-  // Not needed anymore, as we save directly to Supabase
-};
-
-const SellerDashboard = ({ user, setUser }) => {
-  const [activeTab, setActiveTab] = useState('overview');
-  const [showUploadModal, setShowUploadModal] = useState(false);
+const SellerDashboard = () => {
+  const [activeSection, setActiveSection] = useState('overview');
   const [projects, setProjects] = useState([]);
   const [sales, setSales] = useState([]);
-  const [currentUser, setCurrentUser] = useState(user || { email: '', codeCredits: 100, name: 'Seller' });
-  const [loading, setLoading] = useState(!user);
+  const [profile, setProfile] = useState(null);
+  const [wallet, setWallet] = useState({ balance: 0 });
+  const [loading, setLoading] = useState(true);
+  const [editingProject, setEditingProject] = useState(null);
   const navigate = useNavigate();
-  
-  // New Project Form State
-  const [newProject, setNewProject] = useState({
-    title: '',
-    description: '',
-    price: '',
-    category: 'Full Stack'
-  });
 
-  // Get user from Supabase if not passed as prop
-  useEffect(() => {
-    if (user) {
-      setCurrentUser(user);
-      setLoading(false);
-      return;
-    }
-
-    const getUser = async () => {
-      const { data: { user: authUser } } = await supabase.auth.getUser();
-      if (authUser) {
-        // Get user data from Supabase users table
-        const { data: userData } = await supabase
-          .from('users')
-          .select('*')
-          .eq('id', authUser.id)
-          .single();
-
-        if (userData) {
-          setCurrentUser({
-            id: authUser.id,
-            email: authUser.email,
-            ...userData,
-            codeCredits: userData.codeCredits || 100,
-            name: userData.name || authUser.email.split('@')[0]
-          });
-        } else {
-          // Fallback
-          setCurrentUser({
-            id: authUser.id,
-            email: authUser.email,
-            codeCredits: 100,
-            name: authUser.email.split('@')[0]
-          });
-        }
-        setLoading(false);
-      } else {
-        // User not authenticated, redirect to login
+  const fetchData = async () => {
+    try {
+      const user = await getCurrentUser();
+      if (!user) {
         navigate('/login');
+        return;
       }
-    };
 
-    getUser();
-  }, [user, navigate]);
+      const nextProfile = await getUserProfile(user.id);
+      setProfile(nextProfile);
+
+      const [{ data: walletData }, { data: projectData }, { data: orderData }] = await Promise.all([
+        supabase.from('wallets').select('*').eq('user_id', user.id).maybeSingle(),
+        supabase.from('projects').select('*').eq('seller_id', user.id).order('created_at', { ascending: false }),
+        supabase.from('orders').select('*').eq('seller_id', user.id).order('created_at', { ascending: false }),
+      ]);
+
+      setWallet(walletData || { balance: 0 });
+      setProjects(projectData || []);
+      setSales(orderData || []);
+    } catch (error) {
+      console.error('seller dashboard error', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        if (currentUser.id) {
-          const p = await getMyProjects(currentUser.id);
-          const s = await getPurchases(currentUser.id);
-          setProjects(p);
-          setSales(s);
-        }
-      } catch (err) {
-        console.error("Error fetching data:", err);
-      }
-    };
-
-    if (currentUser.id) {
-      fetchData();
-    }
-  }, [currentUser.id]);
+    fetchData();
+  }, [navigate]);
 
   const stats = useMemo(() => {
-    const totalSales = sales.reduce((acc, curr) => acc + Number(curr.amount || 0), 0);
-    const activeCount = projects.length;
-    return { totalSales, activeCount };
-  }, [sales, projects]);
+    const totalEarnings = sales.reduce((sum, order) => sum + Number(order.amount || 0), 0);
+    const totalSales = sales.length;
+    const activeProjects = projects.filter((project) => ['active', 'approved', 'published'].includes(project.status)).length;
+    const pendingOrders = sales.filter((order) => (order.status || '').toLowerCase() === 'pending').length;
+    const reputation = getReputationLevel({ sales: totalSales, reviews: projects.length, completedJobs: totalSales, uploads: projects.length, rating: 4.5, responseSpeed: 80 });
 
-  const handleDeploy = (e) => {
-    e.preventDefault();
-    if (currentUser.codeCredits < 10) {
-      alert("Insufficient CodeCredits! Recharge your developer wallet to deploy.");
-      return;
-    }
-
-    const projectData = {
-      ...newProject,
-      id: `system-${Date.now()}`,
-      status: 'active',
-      ownerEmail: currentUser.email,
-      timestamp: new Date().toISOString()
+    return {
+      totalEarnings,
+      totalSales,
+      totalProjects: projects.length,
+      activeProjects,
+      pendingOrders,
+      dcoinBalance: Number(wallet.balance || 0),
+      reputation,
     };
+  }, [projects, sales, wallet]);
 
-    const updatedProjects = [projectData, ...projects];
-    saveMyProjects(updatedProjects);
-    
-    // Global list sync (for admin/buyer)
-    const all = JSON.parse(localStorage.getItem("allProjects") || "[]");
-    localStorage.setItem("allProjects", JSON.stringify([projectData, ...all]));
+  const updateProjectStatus = async (projectId, status) => {
+    await supabase.from('projects').update({ status }).eq('id', projectId);
+    fetchData();
+  };
 
-    setProjects(updatedProjects);
-    setCurrentUser(prev => ({ ...prev, codeCredits: prev.codeCredits - 10 }));
-    if (setUser) setUser(prev => ({ ...prev, codeCredits: prev.codeCredits - 10 }));
-    setShowUploadModal(false);
-    setNewProject({ title: '', description: '', price: '', category: 'Full Stack' });
+  const deleteProject = async (projectId) => {
+    if (!window.confirm('Delete this project?')) return;
+    await supabase.from('projects').delete().eq('id', projectId);
+    fetchData();
+  };
+
+  const saveProjectEdit = async (event) => {
+    event.preventDefault();
+    if (!editingProject) return;
+    await supabase.from('projects').update({
+      title: editingProject.title,
+      description: editingProject.description,
+      price: Number(editingProject.price || 0),
+      category: editingProject.category,
+    }).eq('id', editingProject.id);
+    setEditingProject(null);
+    fetchData();
   };
 
   if (loading) {
@@ -142,218 +106,170 @@ const SellerDashboard = ({ user, setUser }) => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 space-y-8 animate-in fade-in slide-in-from-bottom-6 duration-700 pt-24 transition-colors duration-300">
-      {/* Header Section */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-        <div>
-          <h1 className="text-4xl font-black text-slate-900 dark:text-slate-100 tracking-tight">Seller <span className="text-indigo-600 dark:text-indigo-400">Forge</span></h1>
-          <p className="text-slate-500 dark:text-slate-400 font-medium mt-1">Manage your intellectual property and track commercial success.</p>
-        </div>
-        <button 
-          onClick={() => setShowUploadModal(true)}
-          className="bg-slate-900 dark:bg-slate-100 hover:bg-indigo-600 dark:hover:bg-indigo-500 text-white dark:text-slate-900 px-8 py-4 rounded-2xl font-bold shadow-xl shadow-slate-200 dark:shadow-slate-800 transition-all hover:-translate-y-1 active:scale-95 flex items-center space-x-3"
-        >
-          <span className="text-xl">⚡</span>
-          <span>Deploy New System</span>
-        </button>
-      </div>
-
-      {/* Tabs */}
-      <div className="flex space-x-1 bg-slate-200/50 dark:bg-slate-800/50 p-1.5 rounded-2xl w-fit">
-        {['overview', 'inventory', 'sales'].map((t) => (
-          <button
-            key={t}
-            onClick={() => setActiveTab(t)}
-            className={`px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
-              activeTab === t ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
-            }`}
-          >
-            {t}
-          </button>
-        ))}
-      </div>
-
-      {/* Overview Grid */}
-      {activeTab === 'overview' && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white dark:bg-slate-800 p-8 rounded-[2.5rem] border border-slate-200 dark:border-slate-700 shadow-sm relative overflow-hidden group">
-            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-125 transition-transform">
-              <span className="text-6xl italic font-black text-slate-900 dark:text-slate-100">$$$</span>
-            </div>
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500 mb-4">Gross Revenue</p>
-            <h3 className="text-4xl font-black text-slate-900 dark:text-slate-100">KES {stats.totalSales.toLocaleString()}</h3>
-            <div className="mt-6 flex items-center space-x-2">
-              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-tighter">Live Financial Feed</span>
-            </div>
+    <div className="min-h-screen bg-slate-50 pt-24 text-slate-900 transition-colors duration-300 dark:bg-slate-950 dark:text-slate-100">
+      <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6 lg:flex-row lg:px-8">
+        <aside className="w-full rounded-[2rem] border border-slate-200 bg-white/90 p-4 shadow-sm backdrop-blur dark:border-slate-800 dark:bg-slate-900/90 lg:w-72">
+          <div className="mb-6">
+            <p className="text-sm font-semibold uppercase tracking-[0.3em] text-blue-700">Seller workspace</p>
+            <h2 className="mt-2 text-2xl font-black">{profile?.full_name || profile?.email || 'Developer'}</h2>
+            <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">Premium dashboard for your projects, sales, and D-Coins.</p>
           </div>
+          <nav className="space-y-2">
+            {navItems.map((item) => (
+              <button key={item.id} onClick={() => setActiveSection(item.id)} className={`w-full rounded-2xl px-4 py-3 text-left text-sm font-semibold transition ${activeSection === item.id ? 'bg-slate-900 text-white dark:bg-blue-500 dark:text-slate-950' : 'bg-slate-50 text-slate-700 hover:bg-slate-100 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700'}`}>
+                {item.label}
+              </button>
+            ))}
+          </nav>
+        </aside>
 
-          <div className="bg-white dark:bg-slate-800 p-8 rounded-[2.5rem] border border-slate-200 dark:border-slate-700 shadow-sm">
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500 mb-4">Hosted Assets</p>
-            <h3 className="text-4xl font-black text-slate-900 dark:text-slate-100">{stats.activeCount} <span className="text-sm font-medium text-slate-400 dark:text-slate-500">Systems</span></h3>
-            <p className="text-xs text-indigo-500 dark:text-indigo-400 font-bold mt-4">Platform Indexed</p>
-          </div>
-
-          <div className="bg-indigo-600 dark:bg-indigo-700 p-8 rounded-[2.5rem] shadow-2xl shadow-indigo-100 dark:shadow-indigo-900/20 text-white">
-            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-200 mb-4">Account Fuel</p>
-            <h3 className="text-4xl font-black">{currentUser.codeCredits}</h3>
-            <p className="text-xs text-indigo-100 font-medium mt-4 italic">Next deployment: 10 Credits</p>
-          </div>
-        </div>
-      )}
-
-      {/* Inventory Table */}
-      {activeTab === 'inventory' && (
-        <div className="bg-white rounded-[2rem] border border-slate-200 overflow-hidden shadow-sm">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead className="bg-slate-50/50 border-b border-slate-100">
-                <tr>
-                  <th className="px-8 py-6 text-[10px] font-black uppercase text-slate-400 tracking-widest">Asset Name</th>
-                  <th className="px-8 py-6 text-[10px] font-black uppercase text-slate-400 tracking-widest">Pricing</th>
-                  <th className="px-8 py-6 text-[10px] font-black uppercase text-slate-400 tracking-widest">Tech Category</th>
-                  <th className="px-8 py-6 text-[10px] font-black uppercase text-slate-400 tracking-widest">Lifecycle</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50">
-                {projects.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} className="px-8 py-20 text-center text-slate-400 font-medium italic">
-                      No assets found in your repository.
-                    </td>
-                  </tr>
-                ) : (
-                  projects.map((p) => (
-                    <tr key={p.id} className="hover:bg-slate-50/80 transition-colors cursor-default">
-                      <td className="px-8 py-6 font-bold text-slate-800">{p.title}</td>
-                      <td className="px-8 py-6">
-                        <span className="font-black text-indigo-600">KES {p.price}</span>
-                      </td>
-                      <td className="px-8 py-6">
-                        <span className="bg-slate-100 text-slate-600 text-[10px] font-black px-3 py-1.5 rounded-lg uppercase">{p.category}</span>
-                      </td>
-                      <td className="px-8 py-6">
-                        <span className="flex items-center space-x-2">
-                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
-                          <span className="text-[10px] font-black uppercase text-emerald-600">Active</span>
-                        </span>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* Sales Feed */}
-      {activeTab === 'sales' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {sales.length === 0 ? (
-             <div className="col-span-full py-20 bg-white rounded-3xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center text-slate-400">
-                <span className="text-4xl mb-4 opacity-50">🛒</span>
-                <p className="font-bold">Waiting for your first commercial breakthrough.</p>
-             </div>
-          ) : (
-            sales.map((sale, idx) => (
-              <div key={idx} className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm hover:border-indigo-200 transition-colors">
-                <div className="flex justify-between items-start mb-4">
-                  <div className="h-10 w-10 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center font-bold">✓</div>
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">
-                    {new Date(sale.timestamp).toLocaleDateString()}
-                  </span>
-                </div>
-                <h4 className="font-bold text-slate-800 truncate mb-1">{sale.projectTitle}</h4>
-                <p className="text-[10px] text-slate-500 font-medium mb-4">{sale.buyerEmail}</p>
-                <div className="pt-4 border-t border-slate-50 flex justify-between items-end">
-                   <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Transaction Value</span>
-                   <span className="text-xl font-black text-slate-900">KES {sale.amount}</span>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      )}
-
-      {/* Deployment Modal */}
-      {showUploadModal && (
-        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[100] flex items-center justify-center p-6 overflow-y-auto">
-          <div className="bg-white w-full max-w-xl rounded-[2.5rem] shadow-2xl p-10 animate-in zoom-in-95 duration-300">
-            <div className="flex justify-between items-start mb-8">
+        <main className="flex-1 space-y-6">
+          <section className="rounded-[2rem] border border-slate-200 bg-white/90 p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/90">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
               <div>
-                <h2 className="text-3xl font-black text-slate-900">System Deployment</h2>
-                <p className="text-slate-500 font-medium">Standard Indexing Fee: <span className="text-indigo-600 font-black">10 CodeCredits</span></p>
+                <p className="text-sm font-semibold uppercase tracking-[0.3em] text-blue-700">DevSoko marketplace</p>
+                <h1 className="mt-2 text-3xl font-black">Convert code into coins</h1>
+                <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">Track your sales, reputation, and uploads from one premium workspace.</p>
               </div>
-              <button onClick={() => setShowUploadModal(false)} className="text-slate-400 hover:text-slate-900 text-2xl">×</button>
+              <div className="rounded-2xl bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                Reputation: {stats.reputation}
+              </div>
             </div>
+          </section>
 
-            <form onSubmit={handleDeploy} className="space-y-6">
-              <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2">System Title</label>
-                <input 
-                  required
-                  type="text" 
-                  value={newProject.title}
-                  onChange={e => setNewProject({...newProject, title: e.target.value})}
-                  className="w-full bg-slate-50 border-0 rounded-2xl px-6 py-4 outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-bold text-slate-800"
-                  placeholder="e.g. Real Estate Management SaaS"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2">Valuation (KES)</label>
-                  <input 
-                    required
-                    type="number" 
-                    value={newProject.price}
-                    onChange={e => setNewProject({...newProject, price: e.target.value})}
-                    className="w-full bg-slate-50 border-0 rounded-2xl px-6 py-4 outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-bold text-slate-800"
-                    placeholder="25000"
-                  />
+          {activeSection === 'overview' && (
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {[
+                { label: 'Total Earnings', value: `KES ${stats.totalEarnings.toLocaleString()}` },
+                { label: 'Total Sales', value: stats.totalSales },
+                { label: 'Total Projects', value: stats.totalProjects },
+                { label: 'Active Projects', value: stats.activeProjects },
+                { label: 'Pending Orders', value: stats.pendingOrders },
+                { label: 'D-Coin Balance', value: `${stats.dcoinBalance} D` },
+              ].map((card) => (
+                <div key={card.label} className="rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                  <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">{card.label}</p>
+                  <h3 className="mt-3 text-3xl font-black text-slate-900 dark:text-slate-100">{card.value}</h3>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2">Framework</label>
-                  <select 
-                    value={newProject.category}
-                    onChange={e => setNewProject({...newProject, category: e.target.value})}
-                    className="w-full bg-slate-50 border-0 rounded-2xl px-6 py-4 outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-bold text-slate-800"
-                  >
-                    <option>Full Stack</option>
-                    <option>Frontend</option>
-                    <option>Backend</option>
-                    <option>Data Science</option>
-                    <option>Mobile Engine</option>
-                    <option>UI Kit</option>
-                    <option>AI/ML Script</option>
-                  </select>
+              ))}
+            </div>
+          )}
+
+          {activeSection === 'projects' && (
+            <div className="space-y-4">
+              {projects.length === 0 ? <div className="rounded-[2rem] border border-dashed border-slate-300 bg-white p-10 text-center text-slate-500 dark:border-slate-700 dark:bg-slate-900">No projects yet. Start by uploading your first product.</div> : projects.map((project) => (
+                <div key={project.id} className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div>
+                      <div className="flex items-center gap-3">
+                        <h3 className="text-xl font-black">{project.title}</h3>
+                        <span className="rounded-full bg-slate-100 px-3 py-1 text-[10px] font-black uppercase tracking-[0.25em] text-slate-600 dark:bg-slate-800 dark:text-slate-200">{project.status}</span>
+                      </div>
+                      <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{project.description}</p>
+                      <div className="mt-4 flex flex-wrap gap-2 text-xs">
+                        <span className="rounded-full bg-blue-50 px-3 py-1 font-semibold text-blue-700 dark:bg-blue-950/70 dark:text-blue-300">{project.category}</span>
+                        <span className="rounded-full bg-emerald-50 px-3 py-1 font-semibold text-emerald-700 dark:bg-emerald-950/70 dark:text-emerald-300">KES {project.price}</span>
+                        <span className="rounded-full bg-purple-50 px-3 py-1 font-semibold text-purple-700 dark:bg-purple-950/70 dark:text-purple-300">{project.technologies || 'Software'}</span>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <button onClick={() => setEditingProject(project)} className="rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white dark:bg-blue-500 dark:text-slate-950">Edit</button>
+                      <button onClick={() => updateProjectStatus(project.id, project.status === 'active' ? 'paused' : 'active')} className="rounded-2xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 dark:border-slate-700 dark:text-slate-200">{project.status === 'active' ? 'Pause' : 'Activate'}</button>
+                      <button onClick={() => deleteProject(project.id)} className="rounded-2xl border border-red-200 px-4 py-2 text-sm font-semibold text-red-600">Delete</button>
+                      <button className="rounded-2xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 dark:border-slate-700 dark:text-slate-200">View analytics</button>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              ))}
+            </div>
+          )}
 
-              <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2">Manifesto / Description</label>
-                <textarea 
-                  required
-                  rows={4}
-                  value={newProject.description}
-                  onChange={e => setNewProject({...newProject, description: e.target.value})}
-                  className="w-full bg-slate-50 border-0 rounded-2xl px-6 py-4 outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-medium text-slate-600 resize-none"
-                  placeholder="Detailed breakdown of system capabilities..."
-                />
-              </div>
+          {activeSection === 'upload' && (
+            <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+              <UploadForm />
+            </div>
+          )}
 
-              <div className="pt-4 space-y-3">
-                <button 
-                  type="submit"
-                  className="w-full bg-indigo-600 text-white py-5 rounded-[1.5rem] font-black uppercase tracking-widest shadow-xl shadow-indigo-200 hover:bg-slate-900 transition-all active:scale-95"
-                >
-                  Confirm & Deduct Credits
-                </button>
-                <p className="text-center text-[10px] text-slate-400 font-bold uppercase tracking-tighter">Your wallet currently holds {currentUser.codeCredits} CodeCredits</p>
+          {activeSection === 'sales' && (
+            <div className="grid gap-4 md:grid-cols-2">
+              {sales.length === 0 ? <div className="rounded-[2rem] border border-dashed border-slate-300 bg-white p-10 text-center text-slate-500 dark:border-slate-700 dark:bg-slate-900">No sales yet. Your first purchase will appear here.</div> : sales.map((sale) => (
+                <div key={sale.id} className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-lg font-black">{sale.project_title || 'Project sale'}</h3>
+                      <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">Buyer: {sale.buyer_email || 'Anonymous'}</p>
+                    </div>
+                    <span className="rounded-full bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-700 dark:bg-emerald-950/70 dark:text-emerald-300">{sale.status || 'completed'}</span>
+                  </div>
+                  <div className="mt-4 flex items-center justify-between text-sm text-slate-600 dark:text-slate-300">
+                    <span>Amount</span>
+                    <span className="font-black text-slate-900 dark:text-slate-100">KES {sale.amount || 0}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {activeSection === 'wallet' && (
+            <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+              <h3 className="text-xl font-black">Wallet</h3>
+              <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">Your current D-Coin balance is ready for new uploads and platform activity.</p>
+              <div className="mt-6 rounded-[1.5rem] bg-slate-900 p-6 text-white dark:bg-slate-800">
+                <p className="text-sm uppercase tracking-[0.3em] text-slate-400">Available balance</p>
+                <p className="mt-3 text-4xl font-black">{stats.dcoinBalance} D</p>
               </div>
-            </form>
-          </div>
+            </div>
+          )}
+
+          {activeSection === 'dcoins' && (
+            <div className="grid gap-4 md:grid-cols-2">
+              {[
+                { name: 'Starter', coins: 20, price: 'KES 100' },
+                { name: 'Builder', coins: 50, price: 'KES 220' },
+                { name: 'Creator', coins: 120, price: 'KES 450' },
+                { name: 'Studio', coins: 300, price: 'KES 900' },
+              ].map((pkg) => (
+                <div key={pkg.name} className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                  <h3 className="text-xl font-black">{pkg.name}</h3>
+                  <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{pkg.coins} D-Coins</p>
+                  <p className="mt-4 text-2xl font-black text-blue-700">{pkg.price}</p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {activeSection === 'reputation' && (
+            <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+              <h3 className="text-xl font-black">Reputation status</h3>
+              <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">Your reputation grows with sales, reviews, uploads, and reliable delivery.</p>
+              <div className="mt-6 rounded-[1.5rem] bg-slate-100 p-6 dark:bg-slate-800">
+                <p className="text-sm uppercase tracking-[0.3em] text-slate-500">Current level</p>
+                <p className="mt-2 text-4xl font-black text-slate-900 dark:text-slate-100">{stats.reputation}</p>
+              </div>
+            </div>
+          )}
+
+          {activeSection === 'notifications' && <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">Notifications will appear here as soon as your activity starts flowing.</div>}
+          {activeSection === 'profile' && <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">Your public profile is synced with Supabase and can be expanded with more details later.</div>}
+          {activeSection === 'settings' && <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">Seller settings can be connected to Supabase preferences once your profile schema is expanded.</div>}
+        </main>
+      </div>
+
+      {editingProject && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4">
+          <form onSubmit={saveProjectEdit} className="w-full max-w-xl rounded-[2rem] bg-white p-6 shadow-2xl dark:bg-slate-900">
+            <h3 className="text-xl font-black">Edit project</h3>
+            <div className="mt-4 space-y-4">
+              <input className="w-full rounded-2xl border border-slate-200 px-4 py-3 dark:border-slate-700 dark:bg-slate-800" value={editingProject.title || ''} onChange={(event) => setEditingProject({ ...editingProject, title: event.target.value })} />
+              <textarea className="w-full rounded-2xl border border-slate-200 px-4 py-3 dark:border-slate-700 dark:bg-slate-800" rows="4" value={editingProject.description || ''} onChange={(event) => setEditingProject({ ...editingProject, description: event.target.value })} />
+              <input className="w-full rounded-2xl border border-slate-200 px-4 py-3 dark:border-slate-700 dark:bg-slate-800" value={editingProject.price || ''} onChange={(event) => setEditingProject({ ...editingProject, price: event.target.value })} />
+              <input className="w-full rounded-2xl border border-slate-200 px-4 py-3 dark:border-slate-700 dark:bg-slate-800" value={editingProject.category || ''} onChange={(event) => setEditingProject({ ...editingProject, category: event.target.value })} />
+            </div>
+            <div className="mt-6 flex justify-end gap-3">
+              <button type="button" onClick={() => setEditingProject(null)} className="rounded-2xl border border-slate-300 px-4 py-2 font-semibold text-slate-700 dark:border-slate-700 dark:text-slate-200">Cancel</button>
+              <button type="submit" className="rounded-2xl bg-slate-900 px-4 py-2 font-semibold text-white dark:bg-blue-500 dark:text-slate-950">Save</button>
+            </div>
+          </form>
         </div>
       )}
     </div>

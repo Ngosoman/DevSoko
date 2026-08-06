@@ -1,39 +1,70 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../supabaseClient";
+import { getCurrentUser, getUserProfile, listAllOrders, listAllProjects, listProfiles } from "../../lib/supabaseMarketplace";
 
-// Utility functions (prefixed to avoid ESLint unused warnings)
-const _getAllProjects = () => JSON.parse(localStorage.getItem("allProjects") || "[]");
-const _getPurchases = () => JSON.parse(localStorage.getItem("purchases") || "[]");
-
-const AdminDashboard = ({ user = { name: "Admin" } }) => {
+const AdminDashboard = () => {
   const [tab, setTab] = useState("overview");
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [projects, setProjects] = useState([]);
   const [purchases, setPurchases] = useState([]);
+  const [profiles, setProfiles] = useState([]);
   const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [profile, setProfile] = useState(null);
+
+  const refreshData = async () => {
+    try {
+      setLoading(true);
+      const authUser = await getCurrentUser();
+      const [profileData, projectData, orderData, profileList] = await Promise.all([
+        getUserProfile(authUser.id),
+        listAllProjects(),
+        listAllOrders(),
+        listProfiles(),
+      ]);
+
+      setProfile(profileData);
+      setProjects(projectData || []);
+      setPurchases(orderData || []);
+      setProfiles(profileList || []);
+    } catch (error) {
+      console.error("Admin dashboard error:", error);
+      window.location.href = "/login";
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     refreshData();
-    const handleStorageChange = () => refreshData();
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
-  const refreshData = () => {
-    setProjects(_getAllProjects());
-    setPurchases(_getPurchases());
-  };
+  const filteredProjects = useMemo(() => {
+    const term = search.toLowerCase();
+    return projects.filter((project) => [project.title, project.description, project.category, project.status].filter(Boolean).join(" ").toLowerCase().includes(term));
+  }, [projects, search]);
+
+  const filteredPurchases = useMemo(() => {
+    const term = search.toLowerCase();
+    return purchases.filter((purchase) => [purchase.project_title, purchase.buyer_email, purchase.status].filter(Boolean).join(" ").toLowerCase().includes(term));
+  }, [purchases, search]);
+
+  const filteredProfiles = useMemo(() => {
+    const term = search.toLowerCase();
+    return profiles.filter((userProfile) => [userProfile.email, userProfile.full_name, userProfile.role].filter(Boolean).join(" ").toLowerCase().includes(term));
+  }, [profiles, search]);
 
   const stats = useMemo(() => {
     const totalOrders = purchases.length;
-    const totalRevenue = purchases.reduce((sum, p) => sum + Number(p.amount || p.price || 0), 0);
+    const totalRevenue = purchases.reduce((sum, purchase) => sum + Number(purchase.amount || purchase.price || 0), 0);
     const platformCommission = totalRevenue * 0.15;
     const uniqueUsers = new Set([
-      ...purchases.map(p => p.buyerEmail),
-      ...projects.map(p => p.ownerEmail)
-    ].filter(Boolean)).size;
+      ...profiles.map((item) => item.email).filter(Boolean),
+      ...purchases.map((item) => item.buyer_email).filter(Boolean),
+      ...projects.map((item) => item.seller_id).filter(Boolean),
+    ]).size;
     return { totalOrders, totalRevenue, platformCommission, uniqueUsers };
-  }, [purchases, projects]);
+  }, [purchases, profiles, projects]);
 
   const handleLogout = async () => {
     try {
@@ -44,12 +75,19 @@ const AdminDashboard = ({ user = { name: "Admin" } }) => {
     }
   };
 
-  const handleDeleteProject = (id) => {
+  const handleDeleteProject = async (id) => {
     if (!window.confirm("Are you sure? This action is permanent for the developer.")) return;
-    const nextAll = _getAllProjects().filter((p) => p.id !== id);
-    localStorage.setItem("allProjects", JSON.stringify(nextAll));
-    setProjects(nextAll);
+    try {
+      await supabase.from("projects").delete().eq("id", id);
+      await refreshData();
+    } catch (error) {
+      console.error("Delete project error:", error);
+    }
   };
+
+  if (loading) {
+    return <div className="flex min-h-screen items-center justify-center bg-slate-50 text-slate-700 dark:bg-slate-950 dark:text-slate-200">Loading admin dashboard...</div>;
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col lg:flex-row transition-colors duration-300">
@@ -92,7 +130,7 @@ const AdminDashboard = ({ user = { name: "Admin" } }) => {
               <input type="text" placeholder="Search..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10 pr-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none w-64 shadow-sm" />
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500">🔍</span>
             </div>
-            <div className="h-10 w-10 bg-indigo-100 dark:bg-indigo-900/20 rounded-full flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold border-2 border-white dark:border-slate-700 shadow-sm">{user.name.charAt(0)}</div>
+            <div className="h-10 w-10 bg-indigo-100 dark:bg-indigo-900/20 rounded-full flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold border-2 border-white dark:border-slate-700 shadow-sm">{(profile?.full_name || profile?.email || 'A').charAt(0).toUpperCase()}</div>
           </div>
         </header>
 
@@ -122,19 +160,19 @@ const AdminDashboard = ({ user = { name: "Admin" } }) => {
 
         {tab === "projects" && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in duration-500">
-            {projects.map((p) => (
-              <div key={p.id} className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm group hover:shadow-xl transition-all">
-                {p.imageUrl && <img src={p.imageUrl} alt="" className="w-full h-40 object-cover" />}
+            {filteredProjects.map((project) => (
+              <div key={project.id} className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm group hover:shadow-xl transition-all">
                 <div className="p-6">
                   <div className="flex justify-between items-start mb-2">
-                    <h3 className="font-bold text-slate-800 line-clamp-1">{p.title}</h3>
-                    <span className="bg-green-100 text-green-700 text-[10px] px-2 py-1 rounded-full font-black uppercase">KES {p.price}</span>
+                    <h3 className="font-bold text-slate-800 line-clamp-1">{project.title}</h3>
+                    <span className="bg-green-100 text-green-700 text-[10px] px-2 py-1 rounded-full font-black uppercase">KES {project.price}</span>
                   </div>
-                  <p className="text-xs text-slate-500 line-clamp-2 mb-4 leading-relaxed">{p.description}</p>
+                  <p className="text-xs text-slate-500 line-clamp-2 mb-4 leading-relaxed">{project.description}</p>
                   <div className="flex items-center space-x-2 text-[10px] text-slate-400 font-bold mb-6">
-                    <span className="bg-slate-100 px-2 py-1 rounded uppercase tracking-wider">{p.ownerEmail}</span>
+                    <span className="bg-slate-100 px-2 py-1 rounded uppercase tracking-wider">{project.category || 'Project'}</span>
+                    <span className="bg-slate-100 px-2 py-1 rounded uppercase tracking-wider">{project.status || 'active'}</span>
                   </div>
-                  <button onClick={() => handleDeleteProject(p.id)} className="w-full bg-red-50 text-red-600 py-3 rounded-2xl text-xs font-bold hover:bg-red-600 hover:text-white transition-all uppercase tracking-widest">
+                  <button onClick={() => handleDeleteProject(project.id)} className="w-full bg-red-50 text-red-600 py-3 rounded-2xl text-xs font-bold hover:bg-red-600 hover:text-white transition-all uppercase tracking-widest">
                     Terminate Listing
                   </button>
                 </div>
@@ -157,16 +195,16 @@ const AdminDashboard = ({ user = { name: "Admin" } }) => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {purchases.slice().reverse().slice(0, 10).map((o, idx) => (
-                    <tr key={idx} className="hover:bg-slate-50">
+                  {filteredPurchases.slice().reverse().slice(0, 10).map((order, index) => (
+                    <tr key={index} className="hover:bg-slate-50">
                       <td className="px-6 py-4 text-sm text-slate-500">
-                        {o.timestamp ? new Date(o.timestamp).toLocaleDateString() : "Unknown"}
+                        {order.created_at ? new Date(order.created_at).toLocaleDateString() : "Unknown"}
                       </td>
-                      <td className="px-6 py-4 text-sm font-medium text-slate-900">{o.buyerEmail}</td>
-                      <td className="px-6 py-4 text-sm text-slate-900">{o.projectTitle || `Project #${o.projectId}`}</td>
-                      <td className="px-6 py-4 text-sm font-bold text-green-600">KES {o.amount || o.price || 0}</td>
+                      <td className="px-6 py-4 text-sm font-medium text-slate-900">{order.buyer_email || 'Anonymous'}</td>
+                      <td className="px-6 py-4 text-sm text-slate-900">{order.project_title || `Project #${order.project_id || order.projectId || index + 1}`}</td>
+                      <td className="px-6 py-4 text-sm font-bold text-green-600">KES {order.amount || order.price || 0}</td>
                       <td className="px-6 py-4">
-                        <span className="px-3 py-1 bg-green-100 text-green-800 text-xs rounded-full font-bold uppercase">Completed</span>
+                        <span className="px-3 py-1 bg-green-100 text-green-800 text-xs rounded-full font-bold uppercase">{order.status || 'Completed'}</span>
                       </td>
                     </tr>
                   ))}
@@ -193,18 +231,16 @@ const AdminDashboard = ({ user = { name: "Admin" } }) => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {[...new Set([...purchases.map(p => p.buyerEmail), ...projects.map(p => p.ownerEmail)])].map((email, idx) => (
-                      <tr key={idx} className="hover:bg-slate-50">
-                        <td className="px-6 py-4 text-sm font-medium text-slate-900">{email}</td>
-                        <td className="px-6 py-4 text-sm text-slate-500">{email.split('@')[0]}</td>
+                    {filteredProfiles.map((userProfile, index) => (
+                      <tr key={userProfile.id || index} className="hover:bg-slate-50">
+                        <td className="px-6 py-4 text-sm font-medium text-slate-900">{userProfile.email}</td>
+                        <td className="px-6 py-4 text-sm text-slate-500">{userProfile.full_name || userProfile.email?.split('@')[0]}</td>
                         <td className="px-6 py-4">
-                          <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full font-bold">Buyer</span>
+                          <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full font-bold">{userProfile.role || 'Buyer'}</span>
                         </td>
-                        <td className="px-6 py-4 text-sm text-slate-500">N/A</td>
+                        <td className="px-6 py-4 text-sm text-slate-500">{userProfile.created_at ? new Date(userProfile.created_at).toLocaleDateString() : 'N/A'}</td>
                         <td className="px-6 py-4">
-                          <button className="text-indigo-600 hover:text-indigo-900 text-xs font-bold mr-2">Edit Role</button>
-                          <button className="text-red-600 hover:text-red-900 text-xs font-bold mr-2">Ban</button>
-                          <button className="text-slate-600 hover:text-slate-900 text-xs font-bold">Delete</button>
+                          <span className="text-slate-600 text-xs font-bold">Managed</span>
                         </td>
                       </tr>
                     ))}
