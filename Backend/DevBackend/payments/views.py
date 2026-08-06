@@ -6,6 +6,7 @@ import logging
 import requests
 
 from django.conf import settings
+from django.contrib.auth.models import User
 from django_ratelimit.decorators import ratelimit
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
@@ -44,6 +45,14 @@ def _safe_json(response):
         return response.json()
     except ValueError:
         return {'raw': response.text}
+
+
+def _first_present(data, *keys, default=''):
+    for key in keys:
+        value = data.get(key)
+        if value is not None and value != '':
+            return value
+    return default
 
 
 def _request_user_or_none(request):
@@ -217,8 +226,8 @@ def pesapal_submit_order(request):
         amount=Decimal(str(data['amount'])),
         currency=data.get('currency', 'KES'),
         description=data['description'],
-        checkout_url=response_data.get('redirect_url', ''),
-        order_tracking_id=response_data.get('order_tracking_id', ''),
+        checkout_url=_first_present(response_data, 'redirect_url', 'redirectUrl'),
+        order_tracking_id=_first_present(response_data, 'order_tracking_id', 'orderTrackingId', 'OrderTrackingId'),
         request_payload=payload,
         response_payload=response_data,
         status='processing' if response.status_code < 400 else 'failed',
