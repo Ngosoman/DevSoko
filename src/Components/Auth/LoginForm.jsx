@@ -9,7 +9,7 @@ import {
   AlertCircle
 } from "lucide-react";
 import { ensureGoogleUserProfile, getDashboardPath, startGoogleOAuth } from "../../utils/googleAuth";
-import { getUserProfile } from "../../lib/supabaseMarketplace";
+import { resolveUserRole } from "../../lib/supabaseMarketplace";
 
 const LoginForm = () => {
   const [email, setEmail] = useState("");
@@ -84,8 +84,7 @@ const LoginForm = () => {
   }, [navigate]);
 
   const redirectByRole = async (user) => {
-    const profile = await getUserProfile(user.id);
-    const userRole = profile?.role || "buyer";
+    const userRole = await resolveUserRole(user);
 
     if (userRole === "admin") navigate("/admin-dashboard");
     else if (userRole === "seller") navigate("/seller-dashboard");

@@ -52,6 +52,23 @@ export const getCurrentUser = async () => {
   return user;
 };
 
+const getAdminEmails = () => {
+  const configured = `${import.meta.env.VITE_ADMIN_EMAILS || import.meta.env.VITE_ADMIN_EMAIL || ''}`
+    .split(',')
+    .map((email) => email.trim().toLowerCase())
+    .filter(Boolean);
+
+  if (configured.length > 0) {
+    return configured;
+  }
+
+  return ['admin@gmail.com'];
+};
+
+export const isAdminEmail = (email = '') => {
+  return getAdminEmails().includes(String(email).trim().toLowerCase());
+};
+
 export const getUserProfile = async (userId) => {
   const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
   if (error && error.code !== 'PGRST116') throw error;
@@ -91,6 +108,28 @@ export const upsertProfile = async ({ userId, email, role = 'buyer', fullName = 
     }
     throw error;
   }
+};
+
+export const resolveUserRole = async (user) => {
+  if (!user) return null;
+
+  const profile = await getUserProfile(user.id);
+  const email = user.email || profile?.email || '';
+  const normalizedEmail = String(email).trim().toLowerCase();
+  const fullName = profile?.full_name || normalizedEmail.split('@')[0] || 'Admin';
+
+  if (isAdminEmail(normalizedEmail) && profile?.role !== 'admin') {
+    await upsertProfile({
+      userId: user.id,
+      email,
+      role: 'admin',
+      fullName,
+      extra: profile ? { created_at: profile.created_at || new Date().toISOString() } : {},
+    });
+    return 'admin';
+  }
+
+  return profile?.role || 'buyer';
 };
 
 export const getAdminSettings = async () => {

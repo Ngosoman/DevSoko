@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { supabase } from "../../supabaseClient";
-import { getUserProfile } from "../../lib/supabaseMarketplace";
+import { resolveUserRole } from "../../lib/supabaseMarketplace";
 
 const RequireAuth = ({ children, allowedRoles = null }) => {
   const [checking, setChecking] = useState(true);
@@ -18,9 +18,9 @@ const RequireAuth = ({ children, allowedRoles = null }) => {
         setUser(user);
 
         if (user) {
-          const profile = await getUserProfile(user.id);
+          const resolvedRole = await resolveUserRole(user);
           if (!mounted) return;
-          setRole(profile?.role || "buyer");
+          setRole(resolvedRole || "buyer");
         }
       } finally {
         if (mounted) setChecking(false);

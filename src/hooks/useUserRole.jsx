@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../supabaseClient";
-import { getUserProfile } from "../lib/supabaseMarketplace";
+import { resolveUserRole } from "../lib/supabaseMarketplace";
 
 const useUserRole = () => {
   const [role, setRole] = useState(null);
@@ -14,8 +14,8 @@ const useUserRole = () => {
         return;
       }
 
-      const profile = await getUserProfile(user.id);
-      setRole(profile?.role || "buyer");
+      const resolvedRole = await resolveUserRole(user);
+      setRole(resolvedRole || "buyer");
       setLoading(false);
     };
 
