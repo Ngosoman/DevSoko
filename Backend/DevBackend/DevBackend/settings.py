@@ -21,12 +21,16 @@ def _env(key, default=None):
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Load environment variables from a .env file
-# Try Backend folder first, then root
-env_path = BASE_DIR / '.env'
-if not env_path.exists():
-    env_path = BASE_DIR.parent / '.env'
-load_dotenv(env_path)
+# Load environment variables from backend-local .env files only.
+# Priority: DevBackend/.env -> Backend/.env
+env_candidates = [
+    BASE_DIR / '.env',
+    BASE_DIR.parent / '.env',
+]
+
+for env_path in env_candidates:
+    if env_path.exists():
+        load_dotenv(env_path, override=True)
 
 
 # Quick-start development settings - unsuitable for production
@@ -93,11 +97,18 @@ MIDDLEWARE = [
 # CORS settings - allow frontend to communicate with backend
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
+    "http://localhost:5174",
+    "http://localhost:5175",
     "http://localhost:3000",
     "http://127.0.0.1:5173",
+    "http://127.0.0.1:5174",
+    "http://127.0.0.1:5175",
     "http://127.0.0.1:3000",
     "https://dev-soko.vercel.app",
-    "https://*.vercel.app",
+]
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r"^http://localhost:\\d+$",
+    r"^http://127\.0\.0\.1:\\d+$",
 ]
 CORS_ALLOW_CREDENTIALS = True
 

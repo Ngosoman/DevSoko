@@ -28,8 +28,15 @@ class AbuseProtectionMiddleware:
         ]
 
     def __call__(self, request):
+        path = request.path or ''
+        payment_api_prefixes = (
+            '/api/pesapal/',
+            '/api/mpesa/',
+        )
+        is_payment_api = path.startswith(payment_api_prefixes)
+
         # Validate Content-Type for POST requests
-        if request.method == 'POST':
+        if request.method == 'POST' and is_payment_api:
             content_type = request.META.get('CONTENT_TYPE', '')
             if not content_type.startswith('application/json'):
                 return HttpResponseForbidden("Invalid content type. Only JSON accepted.")
@@ -38,17 +45,22 @@ class AbuseProtectionMiddleware:
         user_agent = request.META.get('HTTP_USER_AGENT', '').lower()
         if any(bot in user_agent for bot in self.suspicious_user_agents):
             # Allow legitimate bots like Googlebot
-            if 'googlebot' not in user_agent and 'bingbot' not in user_agent:
+            if 'googlebot' not in user_agent and 'bingbot' not in user_agent and not is_payment_api:
                 return HttpResponseForbidden("Access denied.")
         
         # Global rate limiting for all requests
         client_ip = self.get_client_ip(request)
         
         # Different limits for authenticated vs anonymous
-        if request.user.is_authenticated:
+        user = getattr(request, 'user', None)
+        is_authenticated = bool(user and getattr(user, 'is_authenticated', False))
+
+        if is_authenticated:
             rate_limit = '100/m'  # Authenticated users
+            max_requests = 100
         else:
             rate_limit = '30/m'   # Anonymous users
+            max_requests = 30
         
         # Check rate limit
         cache_key = f"ratelimit_{client_ip}"
@@ -58,7 +70,7 @@ class AbuseProtectionMiddleware:
         current_time = time.time()
         requests = [req_time for req_time in requests if current_time - req_time < 60]
         
-        if len(requests) >= 30:  # 30 requests per minute for anonymous
+        if len(requests) >= max_requests:
             logger.warning(f"Rate limit exceeded for IP: {client_ip}, User-Agent: {user_agent}")
             return HttpResponseForbidden("Rate limit exceeded. Please try again later.")
         
