@@ -2,6 +2,22 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { listDeveloperProfiles } from "../lib/supabaseMarketplace";
 
+const getDeveloperReputation = (developer) => {
+  const skillsCount = Array.isArray(developer.skills) ? developer.skills.length : 0;
+  const hourlyRate = Number(developer.hourly_rate || 0);
+  let score = 55;
+  score += Math.min(skillsCount * 6, 24);
+  if (developer.featured) score += 12;
+  if (hourlyRate > 0 && hourlyRate <= 50) score += 6;
+  if (hourlyRate >= 120) score += 4;
+  score = Math.max(40, Math.min(99, score));
+
+  if (score >= 88) return { score, level: "Elite" };
+  if (score >= 78) return { score, level: "Gold" };
+  if (score >= 66) return { score, level: "Silver" };
+  return { score, level: "Rising" };
+};
+
 const initialFormState = {
   name: "",
   email: "",
@@ -291,12 +307,19 @@ const HireDevelopers = () => {
         ) : (
           <div className="mt-10 grid gap-6 md:grid-cols-2 xl:grid-cols-4">
             {developers.map((developer) => (
-              <article
-                key={developer.id}
-                className="group rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl dark:border-slate-800 dark:bg-slate-900"
-              >
+              <article key={developer.id} className="group rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl dark:border-slate-800 dark:bg-slate-900">
+                {(() => {
+                  const reputation = getDeveloperReputation(developer);
+                  const skills = Array.isArray(developer.skills) ? developer.skills : [];
+                  return (
+                    <>
                 <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-900 text-xl font-black text-white dark:bg-blue-500 dark:text-slate-950">
                   {(developer.name || developer.full_name || developer.title || 'D').charAt(0)}
+                </div>
+                <div className="mt-4 flex flex-wrap items-center gap-2">
+                  <span className="rounded-full bg-emerald-100 px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-emerald-700">{reputation.level} Reputation</span>
+                  <span className="rounded-full bg-slate-100 px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-slate-700">Score {reputation.score}</span>
+                  {developer.featured ? <span className="rounded-full bg-amber-100 px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-amber-700">Featured</span> : null}
                 </div>
                 <h3 className="mt-5 text-xl font-bold">{developer.name || developer.full_name || developer.title || 'Developer'}</h3>
                 <p className="mt-1 text-sm font-semibold text-blue-700 dark:text-blue-300">
@@ -316,6 +339,11 @@ const HireDevelopers = () => {
                   <div className="rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-950/70">
                     <span className="font-semibold text-slate-900 dark:text-slate-100">Starting rate:</span> {developer.rate || 'Available on request'}
                   </div>
+                  {skills.length > 0 ? (
+                    <div className="rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-950/70">
+                      <span className="font-semibold text-slate-900 dark:text-slate-100">Skills:</span> {skills.join(", ")}
+                    </div>
+                  ) : null}
                 </div>
 
                 <Link
@@ -324,6 +352,9 @@ const HireDevelopers = () => {
                 >
                   Contact us to hire
                 </Link>
+                    </>
+                  );
+                })()}
               </article>
             ))}
           </div>
