@@ -61,6 +61,10 @@ const Register = () => {
         password,
         options: {
           emailRedirectTo: `${window.location.origin}/login`,
+          data: {
+            role,
+            full_name: email.split("@")[0],
+          },
         },
       });
 

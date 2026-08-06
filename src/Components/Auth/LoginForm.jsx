@@ -66,6 +66,15 @@ const LoginForm = () => {
 
     const completeGoogleLogin = async () => {
       try {
+        const hasOAuthParams =
+          window.location.search.includes("code=") ||
+          window.location.hash.includes("access_token") ||
+          window.location.hash.includes("refresh_token");
+
+        if (!hasOAuthParams) {
+          return;
+        }
+
         const result = await ensureGoogleUserProfile({ defaultRole: "buyer" });
 
         if (!cancelled && result?.role) {
