@@ -111,6 +111,58 @@ def _extract_ipn_id(data):
     return _first_present(data, 'ipn_id', 'ipnId', 'IpnId', default='').strip()
 
 
+def _extract_return_status(data):
+    return str(
+        _first_present(
+            data,
+            'payment_status_description',
+            'paymentStatusDescription',
+            'status',
+            'Status',
+            default='',
+        )
+    ).lower()
+
+
+def _update_transaction_status_from_value(tx, status_value):
+    if 'completed' in status_value:
+        tx.status = 'completed'
+        if tx.order:
+            tx.order.status = 'paid'
+            tx.order.save(update_fields=['status'])
+    elif 'failed' in status_value:
+        tx.status = 'failed'
+    elif 'cancel' in status_value:
+        tx.status = 'cancelled'
+    else:
+        tx.status = 'processing'
+
+
+def _refresh_transaction_status_from_gateway(tx):
+    if not tx.order_tracking_id:
+        return tx, {'detail': 'Order has no tracking id yet'}, status.HTTP_200_OK
+
+    token, token_data = _pesapal_get_token()
+    if not token:
+        return None, {'detail': 'Failed to authenticate with Pesapal', 'error': token_data}, status.HTTP_502_BAD_GATEWAY
+
+    headers = {'Authorization': f'Bearer {token}'}
+    response = requests.get(
+        settings.PESAPAL_TRANSACTION_STATUS_URL,
+        params={'orderTrackingId': tx.order_tracking_id},
+        headers=headers,
+        timeout=30,
+    )
+
+    data = _safe_json(response)
+    status_value = _extract_return_status(data)
+    _update_transaction_status_from_value(tx, status_value)
+
+    tx.status_payload = data
+    tx.save(update_fields=['status', 'status_payload', 'updated_at'])
+    return tx, data, status.HTTP_200_OK
+
+
 def _resolve_or_register_ipn_id(token, callback_url):
     configured_ipn_id = (settings.PESAPAL_IPN_ID or '').strip()
     if configured_ipn_id:
@@ -223,7 +275,8 @@ def pesapal_submit_order(request):
     )
 
     callback_url = data.get('callback_url') or settings.PESAPAL_CALLBACK_URL
-    ipn_id, ipn_error = _resolve_or_register_ipn_id(token, callback_url)
+    ipn_callback_url = (settings.PESAPAL_CALLBACK_URL or '').strip() or callback_url
+    ipn_id, ipn_error = _resolve_or_register_ipn_id(token, ipn_callback_url)
     if ipn_error:
         return Response(ipn_error, status=status.HTTP_502_BAD_GATEWAY)
 
@@ -312,63 +365,74 @@ def pesapal_transaction_status(request, merchant_reference):
     except PesapalTransaction.DoesNotExist:
         return Response({'detail': 'Transaction not found'}, status=status.HTTP_404_NOT_FOUND)
 
-    if not tx.order_tracking_id:
-        return Response(
-            {
-                'detail': 'Order has no tracking id yet',
-                'transaction': PesapalTransactionSerializer(tx).data,
-            },
-            status=status.HTTP_200_OK,
-        )
-
-    token, token_data = _pesapal_get_token()
-    if not token:
-        return Response(
-            {'detail': 'Failed to authenticate with Pesapal', 'error': token_data},
-            status=status.HTTP_502_BAD_GATEWAY,
-        )
-
-    headers = {'Authorization': f'Bearer {token}'}
-    response = requests.get(
-        settings.PESAPAL_TRANSACTION_STATUS_URL,
-        params={'orderTrackingId': tx.order_tracking_id},
-        headers=headers,
-        timeout=30,
-    )
-
-    data = _safe_json(response)
-    status_value = str(data.get('payment_status_description') or data.get('status') or '').lower()
-
-    if 'completed' in status_value:
-        tx.status = 'completed'
-        if tx.order:
-            tx.order.status = 'paid'
-            tx.order.save(update_fields=['status'])
-    elif 'failed' in status_value:
-        tx.status = 'failed'
-    elif 'cancel' in status_value:
-        tx.status = 'cancelled'
-    else:
-        tx.status = 'processing'
-
-    tx.status_payload = data
-    tx.save(update_fields=['status', 'status_payload', 'updated_at'])
+    tx, payload, code = _refresh_transaction_status_from_gateway(tx)
+    if not tx:
+        return Response(payload, status=code)
 
     return Response(
         {
             'transaction': PesapalTransactionSerializer(tx).data,
-            'gateway_status': data,
+            'gateway_status': payload,
         },
-        status=status.HTTP_200_OK,
+        status=code,
     )
 
 
-@api_view(['POST'])
+@api_view(['GET'])
+@permission_classes([AllowAny])
+@ratelimit(key='user', rate='20/m', method='GET', block=True)
+def pesapal_transaction_status_lookup(request):
+    merchant_reference = request.query_params.get('merchant_reference') or request.query_params.get('OrderMerchantReference')
+    order_tracking_id = (
+        request.query_params.get('order_tracking_id')
+        or request.query_params.get('orderTrackingId')
+        or request.query_params.get('OrderTrackingId')
+    )
+
+    if not merchant_reference and not order_tracking_id:
+        return Response(
+            {'detail': 'Provide merchant_reference or order_tracking_id'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    tx = None
+    if merchant_reference:
+        tx = PesapalTransaction.objects.filter(merchant_reference=merchant_reference).first()
+    if not tx and order_tracking_id:
+        tx = PesapalTransaction.objects.filter(order_tracking_id=order_tracking_id).first()
+
+    if not tx:
+        return Response({'detail': 'Transaction not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    tx, payload, code = _refresh_transaction_status_from_gateway(tx)
+    if not tx:
+        return Response(payload, status=code)
+
+    return Response(
+        {
+            'transaction': PesapalTransactionSerializer(tx).data,
+            'gateway_status': payload,
+        },
+        status=code,
+    )
+
+
+@api_view(['GET', 'POST'])
 @permission_classes([AllowAny])
 def pesapal_callback(request):
     data = request.data if isinstance(request.data, dict) else {}
-    merchant_reference = data.get('merchant_reference') or request.query_params.get('merchant_reference')
-    order_tracking_id = data.get('order_tracking_id') or request.query_params.get('OrderTrackingId')
+    merchant_reference = (
+        _first_present(data, 'merchant_reference', 'merchantReference', default='')
+        or request.query_params.get('merchant_reference')
+        or request.query_params.get('orderMerchantReference')
+        or request.query_params.get('OrderMerchantReference')
+    )
+    order_tracking_id = (
+        _first_present(data, 'order_tracking_id', 'orderTrackingId', 'OrderTrackingId', default='')
+        or request.query_params.get('order_tracking_id')
+        or request.query_params.get('orderTrackingId')
+        or request.query_params.get('OrderTrackingId')
+    )
 
     if not merchant_reference and not order_tracking_id:
         return Response({'detail': 'Missing transaction identifiers'}, status=status.HTTP_400_BAD_REQUEST)
@@ -382,22 +446,25 @@ def pesapal_callback(request):
     if not tx:
         return Response({'detail': 'Transaction not found'}, status=status.HTTP_404_NOT_FOUND)
 
-    status_value = str(data.get('status') or data.get('payment_status_description') or '').lower()
-    if 'completed' in status_value:
-        tx.status = 'completed'
-        if tx.order:
-            tx.order.status = 'paid'
-            tx.order.save(update_fields=['status'])
-    elif 'failed' in status_value:
-        tx.status = 'failed'
-    elif 'cancel' in status_value:
-        tx.status = 'cancelled'
-    else:
-        tx.status = 'processing'
+    status_value = _extract_return_status(data)
+    if status_value:
+        _update_transaction_status_from_value(tx, status_value)
+        tx.status_payload = data
+        tx.save(update_fields=['status', 'status_payload', 'updated_at'])
+        return Response({'detail': 'Callback received'}, status=status.HTTP_200_OK)
 
-    tx.status_payload = data
-    tx.save(update_fields=['status', 'status_payload', 'updated_at'])
-    return Response({'detail': 'Callback received'}, status=status.HTTP_200_OK)
+    tx, payload, code = _refresh_transaction_status_from_gateway(tx)
+    if not tx:
+        return Response(payload, status=code)
+
+    return Response(
+        {
+            'detail': 'Callback received and status synced',
+            'transaction': PesapalTransactionSerializer(tx).data,
+            'gateway_status': payload,
+        },
+        status=code,
+    )
 
 
 @api_view(['GET'])

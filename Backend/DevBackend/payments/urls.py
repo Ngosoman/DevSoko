@@ -9,6 +9,7 @@ urlpatterns = [
     path('pesapal/methods/', views.pesapal_payment_methods, name='pesapal_payment_methods'),
     path('pesapal/register-ipn/', views.pesapal_register_ipn, name='pesapal_register_ipn'),
     path('pesapal/submit-order/', views.pesapal_submit_order, name='pesapal_submit_order'),
+    path('pesapal/status/', views.pesapal_transaction_status_lookup, name='pesapal_transaction_status_lookup'),
     path('pesapal/status/<str:merchant_reference>/', views.pesapal_transaction_status, name='pesapal_transaction_status'),
     path('pesapal/callback/', views.pesapal_callback, name='pesapal_callback'),
     path('pesapal/transactions/', views.user_pesapal_transactions, name='user_pesapal_transactions'),

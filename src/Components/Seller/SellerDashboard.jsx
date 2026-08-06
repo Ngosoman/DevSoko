@@ -67,6 +67,14 @@ const writeJsonStorage = (key, value) => {
   localStorage.setItem(key, JSON.stringify(value));
 };
 
+const readFirstParam = (params, keys = []) => {
+  for (const key of keys) {
+    const value = params.get(key);
+    if (value) return value;
+  }
+  return '';
+};
+
 const getBackendBaseUrl = () => {
   const raw = `${import.meta.env.VITE_BACKEND_URL || 'http://127.0.0.1:8000'}`.trim();
   let normalized = raw.replace(/\/$/, '');
@@ -202,16 +210,31 @@ const SellerDashboard = () => {
 
     const syncPaidTopupFromReturn = async () => {
       const params = new URLSearchParams(window.location.search);
-      const merchantReference =
-        params.get('OrderMerchantReference') ||
-        params.get('orderMerchantReference') ||
-        params.get('merchant_reference');
+      const merchantReference = readFirstParam(params, [
+        'OrderMerchantReference',
+        'orderMerchantReference',
+        'merchant_reference',
+        'merchantReference',
+      ]);
+      const orderTrackingId = readFirstParam(params, [
+        'OrderTrackingId',
+        'orderTrackingId',
+        'order_tracking_id',
+      ]);
 
-      if (!merchantReference) return;
+      if (!merchantReference && !orderTrackingId) return;
 
       try {
         const backendBase = getBackendBaseUrl();
-        const response = await fetch(`${backendBase}/api/pesapal/status/${encodeURIComponent(merchantReference)}/`);
+        const query = new URLSearchParams();
+        if (merchantReference) {
+          query.set('merchant_reference', merchantReference);
+        }
+        if (orderTrackingId) {
+          query.set('order_tracking_id', orderTrackingId);
+        }
+
+        const response = await fetch(`${backendBase}/api/pesapal/status/?${query.toString()}`);
         const data = await response.json();
 
         if (!response.ok) {
@@ -219,12 +242,18 @@ const SellerDashboard = () => {
         }
 
         const tx = data?.transaction;
+        const resolvedMerchantReference = tx?.merchant_reference || merchantReference;
+        const resolvedOrderTrackingId = tx?.order_tracking_id || orderTrackingId || null;
         const paid = String(tx?.status || '').toLowerCase() === 'completed';
-        const creditKey = `seller-topup-credited-${merchantReference}`;
+        const creditKey = `seller-topup-credited-${resolvedMerchantReference || resolvedOrderTrackingId || 'unknown'}`;
         const alreadyCredited = localStorage.getItem(creditKey) === '1';
 
         if (paid && !alreadyCredited) {
-          const matchingIntent = safePendingTopups.find((item) => item.merchantReference === merchantReference);
+          const matchingIntent = safePendingTopups.find((item) => {
+            const merchantMatch = resolvedMerchantReference && item.merchantReference === resolvedMerchantReference;
+            const trackingMatch = resolvedOrderTrackingId && item.orderTrackingId === resolvedOrderTrackingId;
+            return merchantMatch || trackingMatch;
+          });
           const coinsToCredit = matchingIntent?.coins || dcoinPackages.find((pkg) => Number(pkg.priceKes) === Number(tx?.amount))?.coins || 0;
 
           if (coinsToCredit > 0) {
@@ -236,8 +265,8 @@ const SellerDashboard = () => {
               reason: 'topup',
               metadata: {
                 provider: 'pesapal',
-                merchantReference,
-                orderTrackingId: tx?.order_tracking_id || null,
+                merchantReference: resolvedMerchantReference || null,
+                orderTrackingId: resolvedOrderTrackingId,
               },
             });
             localStorage.setItem(creditKey, '1');
@@ -245,11 +274,14 @@ const SellerDashboard = () => {
         }
 
         const nextTopups = safePendingTopups.map((item) => {
-          if (item.merchantReference !== merchantReference) return item;
+          const merchantMatch = resolvedMerchantReference && item.merchantReference === resolvedMerchantReference;
+          const trackingMatch = resolvedOrderTrackingId && item.orderTrackingId === resolvedOrderTrackingId;
+          if (!merchantMatch && !trackingMatch) return item;
           return {
             ...item,
             status: tx?.status || item.status,
-            orderTrackingId: tx?.order_tracking_id || item.orderTrackingId,
+            merchantReference: resolvedMerchantReference || item.merchantReference,
+            orderTrackingId: resolvedOrderTrackingId || item.orderTrackingId,
             checkoutUrl: tx?.checkout_url || item.checkoutUrl,
           };
         });
