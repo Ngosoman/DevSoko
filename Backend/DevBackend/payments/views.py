@@ -1,336 +1,463 @@
-from django.shortcuts import render
-
-
-#Mpesa Views
-
-from rest_framework import status
-from rest_framework import viewsets 
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated, AllowAny
-from rest_framework.response import Response
-from .models import MpesaRequest, MpesaResponse, Order
-from .serializers import MpesaRequestSerializer, MpesaResponseSerializer, OrderSerializer, CallbackURLSerializer
-from django.conf import settings
-from django_ratelimit.decorators import ratelimit
 import base64
-import requests
+import uuid
 from datetime import datetime
 from decimal import Decimal
 import logging
+import requests
+
+from django.conf import settings
+from django_ratelimit.decorators import ratelimit
+from rest_framework import status
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.response import Response
+
+from .models import MpesaRequest, MpesaResponse, Order, PesapalTransaction
+from .serializers import (
+    CallbackURLSerializer,
+    MpesaRequestSerializer,
+    MpesaResponseSerializer,
+    OrderSerializer,
+    PesapalCheckoutSerializer,
+    PesapalTransactionSerializer,
+)
 
 logger = logging.getLogger('payments')
+
+PESAPAL_PAYMENT_OPTIONS = [
+    {'code': 'mpesa', 'label': 'M-Pesa'},
+    {'code': 'airtel_money', 'label': 'AirtelMoney'},
+    {'code': 'visa', 'label': 'VisaCard'},
+    {'code': 'mastercard', 'label': 'Mastercard'},
+]
+
+
+def _normalize_phone(phone_number):
+    phone = str(phone_number or '').strip().lstrip('+')
+    if phone.startswith('0'):
+        phone = f"254{phone[1:]}"
+    return phone
+
+
+def _safe_json(response):
+    try:
+        return response.json()
+    except ValueError:
+        return {'raw': response.text}
+
+
+def _get_mpesa_access_token():
+    if not settings.MPESA_CONSUMER_KEY or not settings.MPESA_CONSUMER_SECRET:
+        return None
+
+    response = requests.get(
+        settings.MPESA_AUTH_URL,
+        auth=(settings.MPESA_CONSUMER_KEY, settings.MPESA_CONSUMER_SECRET),
+        timeout=30,
+    )
+
+    if response.status_code != 200:
+        logger.warning('M-Pesa auth failed: %s', response.status_code)
+        return None
+
+    return _safe_json(response).get('access_token')
+
+
+def _generate_mpesa_password():
+    timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+    raw_value = f"{settings.MPESA_SHORTCODE}{settings.MPESA_PASSKEY}{timestamp}"
+    return base64.b64encode(raw_value.encode()).decode('utf-8')
+
+
+def _pesapal_get_token():
+    if not settings.PESAPAL_CONSUMER_KEY or not settings.PESAPAL_CONSUMER_SECRET:
+        return None, {'error': 'Pesapal credentials are missing'}
+
+    payload = {
+        'consumer_key': settings.PESAPAL_CONSUMER_KEY,
+        'consumer_secret': settings.PESAPAL_CONSUMER_SECRET,
+    }
+
+    response = requests.post(settings.PESAPAL_AUTH_URL, json=payload, timeout=30)
+    data = _safe_json(response)
+    token = data.get('token')
+
+    if response.status_code >= 400 or not token:
+        return None, data
+
+    return token, data
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def pesapal_payment_methods(request):
+    return Response({'methods': PESAPAL_PAYMENT_OPTIONS}, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+@ratelimit(key='user', rate='5/m', method='POST', block=True)
+def pesapal_register_ipn(request):
+    callback_url = request.data.get('callback_url') or settings.PESAPAL_CALLBACK_URL
+    ipn_notification_type = request.data.get('ipn_notification_type', 'POST')
+
+    token, token_data = _pesapal_get_token()
+    if not token:
+        return Response(
+            {'detail': 'Failed to authenticate with Pesapal', 'error': token_data},
+            status=status.HTTP_502_BAD_GATEWAY,
+        )
+
+    headers = {
+        'Authorization': f'Bearer {token}',
+        'Content-Type': 'application/json',
+    }
+    payload = {
+        'url': callback_url,
+        'ipn_notification_type': ipn_notification_type,
+    }
+
+    response = requests.post(settings.PESAPAL_REGISTER_IPN_URL, json=payload, headers=headers, timeout=30)
+    data = _safe_json(response)
+
+    if response.status_code >= 400:
+        return Response(
+            {'detail': 'Failed to register IPN', 'error': data},
+            status=status.HTTP_502_BAD_GATEWAY,
+        )
+
+    return Response(
+        {
+            'detail': 'IPN registered successfully',
+            'gateway_response': data,
+            'next_step': 'Set PESAPAL_IPN_ID in environment from returned ipn_id value',
+        },
+        status=status.HTTP_201_CREATED,
+    )
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+@ratelimit(key='user', rate='10/m', method='POST', block=True)
+def pesapal_submit_order(request):
+    serializer = PesapalCheckoutSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    data = serializer.validated_data
+
+    token, token_data = _pesapal_get_token()
+    if not token:
+        return Response(
+            {
+                'detail': 'Failed to authenticate with Pesapal',
+                'error': token_data,
+            },
+            status=status.HTTP_502_BAD_GATEWAY,
+        )
+
+    merchant_reference = f"DEV-{uuid.uuid4().hex[:24].upper()}"
+
+    order = Order.objects.create(
+        buyer=request.user,
+        product=data['account_reference'],
+        status='pending',
+    )
+
+    callback_url = settings.PESAPAL_CALLBACK_URL
+    ipn_id = settings.PESAPAL_IPN_ID
+
+    payload = {
+        'id': merchant_reference,
+        'currency': data.get('currency', 'KES'),
+        'amount': float(data['amount']),
+        'description': data['description'],
+        'callback_url': callback_url,
+        'notification_id': ipn_id,
+        'billing_address': {
+            'email_address': data.get('email') or request.user.email,
+            'phone_number': _normalize_phone(data.get('phone_number')),
+            'country_code': 'KE',
+            'first_name': data.get('first_name') or request.user.first_name or 'DevSoko',
+            'last_name': data.get('last_name') or request.user.last_name or 'User',
+        },
+    }
+
+    headers = {
+        'Authorization': f'Bearer {token}',
+        'Content-Type': 'application/json',
+    }
+
+    response = requests.post(settings.PESAPAL_SUBMIT_ORDER_URL, json=payload, headers=headers, timeout=30)
+    response_data = _safe_json(response)
+
+    transaction = PesapalTransaction.objects.create(
+        user=request.user,
+        order=order,
+        merchant_reference=merchant_reference,
+        payment_method=data['payment_method'],
+        amount=Decimal(str(data['amount'])),
+        currency=data.get('currency', 'KES'),
+        description=data['description'],
+        checkout_url=response_data.get('redirect_url', ''),
+        order_tracking_id=response_data.get('order_tracking_id', ''),
+        request_payload=payload,
+        response_payload=response_data,
+        status='processing' if response.status_code < 400 else 'failed',
+    )
+
+    if response.status_code >= 400:
+        return Response(
+            {
+                'detail': 'Pesapal order submission failed',
+                'transaction': PesapalTransactionSerializer(transaction).data,
+                'error': response_data,
+            },
+            status=status.HTTP_502_BAD_GATEWAY,
+        )
+
+    return Response(
+        {
+            'detail': 'Order submitted to Pesapal successfully',
+            'checkout_url': transaction.checkout_url,
+            'order_tracking_id': transaction.order_tracking_id,
+            'merchant_reference': transaction.merchant_reference,
+            'selected_method': transaction.payment_method,
+            'supported_methods': PESAPAL_PAYMENT_OPTIONS,
+        },
+        status=status.HTTP_201_CREATED,
+    )
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+@ratelimit(key='user', rate='20/m', method='GET', block=True)
+def pesapal_transaction_status(request, merchant_reference):
+    try:
+        tx = PesapalTransaction.objects.get(merchant_reference=merchant_reference, user=request.user)
+    except PesapalTransaction.DoesNotExist:
+        return Response({'detail': 'Transaction not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    if not tx.order_tracking_id:
+        return Response(
+            {
+                'detail': 'Order has no tracking id yet',
+                'transaction': PesapalTransactionSerializer(tx).data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    token, token_data = _pesapal_get_token()
+    if not token:
+        return Response(
+            {'detail': 'Failed to authenticate with Pesapal', 'error': token_data},
+            status=status.HTTP_502_BAD_GATEWAY,
+        )
+
+    headers = {'Authorization': f'Bearer {token}'}
+    response = requests.get(
+        settings.PESAPAL_TRANSACTION_STATUS_URL,
+        params={'orderTrackingId': tx.order_tracking_id},
+        headers=headers,
+        timeout=30,
+    )
+
+    data = _safe_json(response)
+    status_value = str(data.get('payment_status_description') or data.get('status') or '').lower()
+
+    if 'completed' in status_value:
+        tx.status = 'completed'
+        if tx.order:
+            tx.order.status = 'paid'
+            tx.order.save(update_fields=['status'])
+    elif 'failed' in status_value:
+        tx.status = 'failed'
+    elif 'cancel' in status_value:
+        tx.status = 'cancelled'
+    else:
+        tx.status = 'processing'
+
+    tx.status_payload = data
+    tx.save(update_fields=['status', 'status_payload', 'updated_at'])
+
+    return Response(
+        {
+            'transaction': PesapalTransactionSerializer(tx).data,
+            'gateway_status': data,
+        },
+        status=status.HTTP_200_OK,
+    )
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def pesapal_callback(request):
+    data = request.data if isinstance(request.data, dict) else {}
+    merchant_reference = data.get('merchant_reference') or request.query_params.get('merchant_reference')
+    order_tracking_id = data.get('order_tracking_id') or request.query_params.get('OrderTrackingId')
+
+    if not merchant_reference and not order_tracking_id:
+        return Response({'detail': 'Missing transaction identifiers'}, status=status.HTTP_400_BAD_REQUEST)
+
+    tx = None
+    if merchant_reference:
+        tx = PesapalTransaction.objects.filter(merchant_reference=merchant_reference).first()
+    if not tx and order_tracking_id:
+        tx = PesapalTransaction.objects.filter(order_tracking_id=order_tracking_id).first()
+
+    if not tx:
+        return Response({'detail': 'Transaction not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    status_value = str(data.get('status') or data.get('payment_status_description') or '').lower()
+    if 'completed' in status_value:
+        tx.status = 'completed'
+        if tx.order:
+            tx.order.status = 'paid'
+            tx.order.save(update_fields=['status'])
+    elif 'failed' in status_value:
+        tx.status = 'failed'
+    elif 'cancel' in status_value:
+        tx.status = 'cancelled'
+    else:
+        tx.status = 'processing'
+
+    tx.status_payload = data
+    tx.save(update_fields=['status', 'status_payload', 'updated_at'])
+    return Response({'detail': 'Callback received'}, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def user_orders(request):
+    orders = Order.objects.filter(buyer=request.user).order_by('-timestamp')
+    return Response(OrderSerializer(orders, many=True).data, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def user_pesapal_transactions(request):
+    transactions = PesapalTransaction.objects.filter(user=request.user).order_by('-created_at')
+    return Response(PesapalTransactionSerializer(transactions, many=True).data, status=status.HTTP_200_OK)
+
+
+# Dynamic callback URL management for M-Pesa
+_dynamic_callback_url = None
+
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 @ratelimit(key='user', rate='5/m', method='POST', block=True)
 def stk_push(request):
-    print("Received STK push request:", request.data)  # <-- This will show in backend terminal
-    data = request.data.copy()
-    data.pop('product_id', None)  # Remove product_id as it's not needed for MpesaRequest
-    data['amount'] = Decimal(str(data['amount']))
-    serializer = MpesaRequestSerializer(data=data)
-    if serializer.is_valid():
-        order = Order.objects.create(buyer=request.user, product=data.get('account_reference'), status='pending')
-        mpesa_request = serializer.save(order=order)
-        response_data = initiate_stk_push(mpesa_request)
-        print("Mpesa API response:", response_data)
-        if response_data.get('ResponseCode') != '0':
-            mpesa_response = MpesaResponse.objects.create(
-                request=mpesa_request,
-                merchant_request_id=response_data.get('MerchantRequestID', ''),
-                checkout_request_id=response_data.get('CheckoutRequestID', ''),
-                response_description=response_data.get('ResponseDescription', ''),
-                response_code=response_data.get('ResponseCode', ''),
-                customer_message=response_data.get('CustomerMessage', ''),
-            )
-            return Response({'detail': 'STK push failed', 'error': response_data}, status=400)
-        mpesa_response = MpesaResponse.objects.create(
-            request=mpesa_request,
-            merchant_request_id=response_data.get('MerchantRequestID', ''),
-            checkout_request_id=response_data.get('CheckoutRequestID', ''),
-            response_description=response_data.get('ResponseDescription', ''),
-            response_code=response_data.get('ResponseCode', ''),
-            customer_message=response_data.get('CustomerMessage', ''),
-        )
-        response_serializer = MpesaResponseSerializer(mpesa_response)
-        return Response(response_serializer.data, status=status.HTTP_201_CREATED)
-    else:
-        print("Serializer errors:", serializer.errors)
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    payload = request.data.copy()
+    payload.pop('product_id', None)
 
-def initiate_stk_push(mpesa_request):
-    access_token = get_access_token()
-    
+    serializer = MpesaRequestSerializer(data=payload)
+    serializer.is_valid(raise_exception=True)
+
+    order = Order.objects.create(
+        buyer=request.user,
+        product=serializer.validated_data.get('account_reference'),
+        status='pending',
+    )
+    mpesa_request = serializer.save(order=order)
+
+    access_token = _get_mpesa_access_token()
     if not access_token:
-        return {
-            'ResponseCode': '1',
-            'ResponseDescription': 'Failed to get Mpesa access token. Please check your credentials.',
-            'ErrorMessage': 'Mpesa credentials not configured or invalid'
-        }
-    
-    # Use dynamic URL from settings based on environment
-    api_url = settings.MPESA_STK_PUSH_URL
-    headers = {
-        "Authorization": f"Bearer {access_token}",
-        "Content-Type": "application/json"
-    }
-    
-    print("Access Token:", access_token[:20] + "...")  # Debugging line
-    print("Using M-Pesa API URL:", api_url)  # Debugging line
-    
-    # Format phone number properly
-    phone = mpesa_request.phone_number
-    # Remove any + prefix
-    phone = phone.lstrip('+')
-    # Ensure it starts with 254
-    if not phone.startswith('254'):
-        phone = '254' + phone.lstrip('0')
-    
-    # Check if shortcode is configured
-    shortcode = settings.MPESA_SHORTCODE
-    if shortcode == 'your_shortcode_here':
-        return {
-            'ResponseCode': '1',
-            'ResponseDescription': 'Mpesa shortcode not configured',
-            'ErrorMessage': 'Please configure MPESA_SHORTCODE in .env file'
-        }
-    
-    payload = {
-        "BusinessShortCode": shortcode,
-        "Password": generate_password(),
-        "Timestamp": datetime.now().strftime('%Y%m%d%H%M%S'),
-        "TransactionType": "CustomerPayBillOnline",
-        "Amount": int(float(mpesa_request.amount)),  # Convert to integer
-        "PartyA": phone,
-        "PartyB": shortcode,
-        "PhoneNumber": phone,
-        "CallBackURL": _dynamic_callback_url if _dynamic_callback_url else settings.MPESA_CALLBACK_URL,
-        "AccountReference": mpesa_request.account_reference,
-        "TransactionDesc": mpesa_request.transaction
-    }
-    
-    print("STK Push Payload:", payload)  # Debugging line
-    
-    try:
-        response = requests.post(api_url, json=payload, headers=headers, timeout=30)
-        response_data = response.json()
-        print("Mpesa API Response:", response_data)
-        return response_data
-    except requests.exceptions.RequestException as e:
-        print(f"ERROR: STK Push request failed: {str(e)}")
-        return {
-            'ResponseCode': '1',
-            'ResponseDescription': 'Network error occurred',
-            'ErrorMessage': str(e)
-        }
-    except ValueError as e:
-        print(f"ERROR: Failed to parse Mpesa response: {str(e)}")
-        return {
-            'ResponseCode': '1',
-            'ResponseDescription': 'Invalid response from Mpesa',
-            'ErrorMessage': str(e)
-        }
+        return Response({'detail': 'Failed to obtain M-Pesa token'}, status=status.HTTP_502_BAD_GATEWAY)
 
-def get_access_token():
-    consumer_key = settings.MPESA_CONSUMER_KEY
-    consumer_secret = settings.MPESA_CONSUMER_SECRET
-    
-    # Check if credentials are set
-    if consumer_key == 'your_consumer_key_here' or consumer_secret == 'your_consumer_secret_here':
-        print("ERROR: Mpesa credentials not configured in .env file")
-        return None
-    
-    # Use dynamic URL from settings based on environment
-    api_url = settings.MPESA_AUTH_URL
-    
-    try:
-        response = requests.get(api_url, auth=(consumer_key, consumer_secret), timeout=30)
-        response_data = response.json()
-        
-        if response.status_code != 200:
-            print(f"ERROR: Failed to get access token. Status: {response.status_code}, Response: {response_data}")
-            return None
-            
-        access_token = response_data.get('access_token')
-        if not access_token:
-            print(f"ERROR: No access token in response: {response_data}")
-            return None
-            
-        return access_token
-    except requests.exceptions.RequestException as e:
-        print(f"ERROR: Request failed: {str(e)}")
-        return None
-    except ValueError as e:
-        print(f"ERROR: Failed to parse response: {str(e)}")
-        return None
-
-def generate_password():
-    shortcode = settings.MPESA_SHORTCODE
-    passkey = settings.MPESA_PASSKEY
+    phone = _normalize_phone(mpesa_request.phone_number)
     timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
-    data_to_encode = shortcode + passkey + timestamp
-    encoded_string = base64.b64encode(data_to_encode.encode())
-    return encoded_string.decode('utf-8')
+    callback_url = _dynamic_callback_url or settings.MPESA_CALLBACK_URL
+
+    req_payload = {
+        'BusinessShortCode': settings.MPESA_SHORTCODE,
+        'Password': _generate_mpesa_password(),
+        'Timestamp': timestamp,
+        'TransactionType': 'CustomerPayBillOnline',
+        'Amount': int(float(mpesa_request.amount)),
+        'PartyA': phone,
+        'PartyB': settings.MPESA_SHORTCODE,
+        'PhoneNumber': phone,
+        'CallBackURL': callback_url,
+        'AccountReference': mpesa_request.account_reference,
+        'TransactionDesc': mpesa_request.transaction,
+    }
+
+    headers = {
+        'Authorization': f'Bearer {access_token}',
+        'Content-Type': 'application/json',
+    }
+    response = requests.post(settings.MPESA_STK_PUSH_URL, json=req_payload, headers=headers, timeout=30)
+    response_data = _safe_json(response)
+
+    mpesa_response = MpesaResponse.objects.create(
+        request=mpesa_request,
+        merchant_request_id=response_data.get('MerchantRequestID', ''),
+        checkout_request_id=response_data.get('CheckoutRequestID', ''),
+        response_description=response_data.get('ResponseDescription', ''),
+        response_code=str(response_data.get('ResponseCode', '')),
+        customer_message=response_data.get('CustomerMessage', ''),
+    )
+
+    if str(response_data.get('ResponseCode')) != '0':
+        return Response(
+            {'detail': 'STK push failed', 'gateway_response': response_data},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    return Response(MpesaResponseSerializer(mpesa_response).data, status=status.HTTP_201_CREATED)
+
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def mpesa_callback(request):
-    try:
-        callback_data = request.data
-        if not isinstance(callback_data, dict):
-            return Response({'error': 'Invalid data format'}, status=400)
-        
-        stk_callback = callback_data.get('Body', {}).get('stkCallback', {})
-        if not stk_callback:
-            return Response({'error': 'Invalid callback structure'}, status=400)
-        
-        checkout_request_id = stk_callback.get('CheckoutRequestID')
-        if not checkout_request_id or not isinstance(checkout_request_id, str) or len(checkout_request_id) > 50:
-            return Response({'error': 'Invalid checkout request ID'}, status=400)
-        
-        result_code = stk_callback.get('ResultCode')
-        if result_code is None or not isinstance(result_code, int):
-            return Response({'error': 'Invalid result code'}, status=400)
-        
-        result_desc = stk_callback.get('ResultDesc', '')
-        if not isinstance(result_desc, str) or len(result_desc) > 255:
-            return Response({'error': 'Invalid result description'}, status=400)
-        
-        # Process the callback
-        try:
-            mpesa_request = MpesaRequest.objects.get(mpesa_response__checkout_request_id=checkout_request_id)
-            mpesa_response = mpesa_request.mpesa_response
-            mpesa_response.result_code = result_code
-            mpesa_response.result_desc = result_desc
-            mpesa_response.save()
-            if result_code == 0:
-                mpesa_request.order.status = 'paid'
-                mpesa_request.order.save()
-        except MpesaRequest.DoesNotExist:
-            pass  # Log or handle
-        
-        return Response({'success': True})
-    except Exception as e:
-        logger.error(f'Callback processing error: {str(e)}')
-        return Response({'error': 'Processing failed'}, status=500)
-    return Response({'ResultCode': 0, 'ResultDesc': 'Success'})
+    callback_data = request.data if isinstance(request.data, dict) else {}
+    stk_callback = callback_data.get('Body', {}).get('stkCallback', {})
+    checkout_request_id = stk_callback.get('CheckoutRequestID')
 
-# Dynamic callback URL management
-_dynamic_callback_url = None
+    if not checkout_request_id:
+        return Response({'detail': 'Missing CheckoutRequestID'}, status=status.HTTP_400_BAD_REQUEST)
+
+    mpesa_response = MpesaResponse.objects.filter(checkout_request_id=checkout_request_id).select_related('request__order').first()
+    if not mpesa_response:
+        return Response({'detail': 'Unknown transaction'}, status=status.HTTP_404_NOT_FOUND)
+
+    result_code = stk_callback.get('ResultCode')
+    result_desc = stk_callback.get('ResultDesc', '')
+    mpesa_response.result_code = str(result_code)
+    mpesa_response.result_desc = str(result_desc)
+    mpesa_response.save(update_fields=['result_code', 'result_desc'])
+
+    if str(result_code) == '0' and mpesa_response.request.order:
+        mpesa_response.request.order.status = 'paid'
+        mpesa_response.request.order.save(update_fields=['status'])
+
+    return Response({'ResultCode': 0, 'ResultDesc': 'Accepted'})
+
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
-@ratelimit(key='user', rate='10/m', method='GET', block=True)
 def get_ngrok_url(request):
-    """Get current callback URL configuration"""
-    return Response({
-        'current_callback_url': _dynamic_callback_url or settings.MPESA_CALLBACK_URL,
-        'is_dynamic': _dynamic_callback_url is not None
-    })
+    return Response(
+        {
+            'current_callback_url': _dynamic_callback_url or settings.MPESA_CALLBACK_URL,
+            'is_dynamic': _dynamic_callback_url is not None,
+        },
+        status=status.HTTP_200_OK,
+    )
+
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
-@ratelimit(key='user', rate='5/m', method='POST', block=True)
 def set_callback_url(request):
     serializer = CallbackURLSerializer(data=request.data)
-    if not serializer.is_valid():
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
-    new_url = serializer.validated_data['callback_url']
-    
-    # Additional security check
-    if not new_url.startswith('http'):
-        return Response({'error': 'Invalid URL format'}, status=400)
-    
+    serializer.is_valid(raise_exception=True)
+
     global _dynamic_callback_url
-    _dynamic_callback_url = new_url
-    print(f"Updated callback URL to: {_dynamic_callback_url}")
-    
-    return Response({
-        'success': True,
-        'callback_url': _dynamic_callback_url
-    })
+    _dynamic_callback_url = serializer.validated_data['callback_url']
+    return Response({'success': True, 'callback_url': _dynamic_callback_url}, status=status.HTTP_200_OK)
+
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
 @ratelimit(key='ip', rate='3/h', method='POST', block=True)
 def register_user(request):
-    # This endpoint can be used to register users if needed
-    # For now, just rate limit registration attempts
-    # Actual registration is handled by Firebase on frontend
-    return Response({'message': 'Registration handled on frontend'}, status=200)
-
-# Modified initiate_stk_push to use dynamic callback URL
-def initiate_stk_push_with_dynamic_callback(mpesa_request):
-    """Modified version that uses dynamic callback URL if set"""
-    access_token = get_access_token()
-    
-    if not access_token:
-        return {
-            'ResponseCode': '1',
-            'ResponseDescription': 'Failed to get Mpesa access token. Please check your credentials.',
-            'ErrorMessage': 'Mpesa credentials not configured or invalid'
-        }
-    
-    # Use dynamic URL from settings based on environment
-    api_url = settings.MPESA_STK_PUSH_URL
-    headers = {
-        "Authorization": f"Bearer {access_token}",
-        "Content-Type": "application/json"
-    }
-    
-    print("Access Token:", access_token[:20] + "...")
-    
-    # Format phone number properly
-    phone = mpesa_request.phone_number
-    phone = phone.lstrip('+')
-    if not phone.startswith('254'):
-        phone = '254' + phone.lstrip('0')
-    
-    # Check if shortcode is configured
-    shortcode = settings.MPESA_SHORTCODE
-    if shortcode == 'your_shortcode_here':
-        return {
-            'ResponseCode': '1',
-            'ResponseDescription': 'Mpesa shortcode not configured',
-            'ErrorMessage': 'Please configure MPESA_SHORTCODE in .env file'
-        }
-    
-    # Use dynamic callback URL if set, otherwise use settings
-    callback_url = _dynamic_callback_url if _dynamic_callback_url else settings.MPESA_CALLBACK_URL
-    
-    payload = {
-        "BusinessShortCode": shortcode,
-        "Password": generate_password(),
-        "Timestamp": datetime.now().strftime('%Y%m%d%H%M%S'),
-        "TransactionType": "CustomerPayBillOnline",
-        "Amount": int(float(mpesa_request.amount)),
-        "PartyA": phone,
-        "PartyB": shortcode,
-        "PhoneNumber": phone,
-        "CallBackURL": callback_url,
-        "AccountReference": mpesa_request.account_reference,
-        "TransactionDesc": mpesa_request.transaction
-    }
-    
-    print("STK Push Payload:", payload)
-    
-    try:
-        response = requests.post(api_url, json=payload, headers=headers, timeout=30)
-        response_data = response.json()
-        print("Mpesa API Response:", response_data)
-        return response_data
-    except requests.exceptions.RequestException as e:
-        print(f"ERROR: STK Push request failed: {str(e)}")
-        return {
-            'ResponseCode': '1',
-            'ResponseDescription': 'Network error occurred',
-            'ErrorMessage': str(e)
-        }
-    except ValueError as e:
-        print(f"ERROR: Failed to parse Mpesa response: {str(e)}")
-        return {
-            'ResponseCode': '1',
-            'ResponseDescription': 'Invalid response from Mpesa',
-            'ErrorMessage': str(e)
-        }
+    return Response({'message': 'Registration handled on frontend'}, status=status.HTTP_200_OK)

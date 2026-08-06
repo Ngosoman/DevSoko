@@ -1,8 +1,8 @@
 from rest_framework import serializers
-from .models import MpesaRequest, MpesaResponse, Order
-import re
-from django.core.validators import URLValidator
-from django.core.exceptions import ValidationError
+from django.conf import settings
+from django.core.validators import RegexValidator
+from decimal import Decimal
+from .models import MpesaRequest, MpesaResponse, Order, PesapalTransaction
 
 class CallbackURLSerializer(serializers.Serializer):
     callback_url = serializers.URLField()
@@ -34,7 +34,7 @@ class MpesaRequestSerializer(serializers.ModelSerializer):
     amount = serializers.DecimalField(
         max_digits=10,
         decimal_places=2,
-        min_value=0.01
+        min_value=Decimal('0.01')
     )
     account_reference = serializers.CharField(
         max_length=50,
@@ -82,4 +82,39 @@ class MpesaResponseSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         ret = super().to_representation(instance)
         return ret
+
+
+class PesapalCheckoutSerializer(serializers.Serializer):
+    PAYMENT_METHOD_CHOICES = ['mpesa', 'airtel_money', 'visa', 'mastercard']
+
+    amount = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=Decimal('0.01'))
+    description = serializers.CharField(max_length=255)
+    account_reference = serializers.CharField(max_length=120)
+    payment_method = serializers.ChoiceField(choices=PAYMENT_METHOD_CHOICES)
+    currency = serializers.CharField(max_length=3, required=False, default='KES')
+    phone_number = serializers.CharField(max_length=20, required=False, allow_blank=True)
+    email = serializers.EmailField(required=False, allow_blank=True)
+    first_name = serializers.CharField(max_length=100, required=False, allow_blank=True)
+    last_name = serializers.CharField(max_length=100, required=False, allow_blank=True)
+
+    def validate_currency(self, value):
+        return value.upper()
+
+
+class PesapalTransactionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PesapalTransaction
+        fields = [
+            'id',
+            'merchant_reference',
+            'order_tracking_id',
+            'payment_method',
+            'amount',
+            'currency',
+            'description',
+            'status',
+            'checkout_url',
+            'created_at',
+            'updated_at',
+        ]
 

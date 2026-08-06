@@ -53,7 +53,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'payments',
     'rest_framework',
-    'ratelimit',
+    'django_ratelimit',
 ]
 
 REST_FRAMEWORK = {
@@ -64,6 +64,18 @@ REST_FRAMEWORK = {
         'rest_framework.permissions.IsAuthenticated',
     ],
 }
+
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
+        'LOCATION': 'devsoko_cache',
+    }
+}
+
+SILENCED_SYSTEM_CHECKS = [
+    'django_ratelimit.E003',
+    'django_ratelimit.W001',
+]
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
@@ -193,12 +205,25 @@ def _env(key, default=None):
     val = os.getenv(key, default)
     return val.strip("'\"") if isinstance(val, str) else val
 
-MPESA_CONSUMER_KEY = _env('MPESA_CONSUMER_KEY', 'your_consumer_key_here')
-MPESA_CONSUMER_SECRET = _env('MPESA_CONSUMER_SECRET', 'your_consumer_secret_here')
-# Accept either MPESA_SHORTCODE or MPESA_SHORT_CODE in .env
-MPESA_SHORTCODE = _env('MPESA_SHORTCODE') or _env('MPESA_SHORT_CODE') or 'your_shortcode_here'
-MPESA_PASSKEY = _env('MPESA_PASSKEY', 'your_passkey_here')
-MPESA_ENVIRONMENT = _env('MPESA_ENVIRONMENT', 'production')  # Changed to production
+MPESA_CONSUMER_KEY = (
+    _env('MPESA_CONSUMER_KEY')
+    or _env('EXPRESS_MPESA_CONSUMER_KEY')
+    or 'your_consumer_key_here'
+)
+MPESA_CONSUMER_SECRET = (
+    _env('MPESA_CONSUMER_SECRET')
+    or _env('EXPRESS_MPESA_CONSUMER_SECRET')
+    or 'your_consumer_secret_here'
+)
+# Accept either MPESA_SHORTCODE, MPESA_SHORT_CODE, or EXPRESS_MPESA_SHORTCODE in .env
+MPESA_SHORTCODE = (
+    _env('MPESA_SHORTCODE')
+    or _env('MPESA_SHORT_CODE')
+    or _env('EXPRESS_MPESA_SHORTCODE')
+    or 'your_shortcode_here'
+)
+MPESA_PASSKEY = _env('MPESA_PASSKEY') or _env('EXPRESS_MPESA_PASSKEY') or 'your_passkey_here'
+MPESA_ENVIRONMENT = _env('MPESA_ENVIRONMENT', 'production')
 MPESA_CALLBACK_URL = _env('MPESA_CALLBACK_URL', 'https://devsoko.onrender.com/api/mpesa/callback/')
 
 # M-Pesa API URLs based on environment
@@ -216,6 +241,24 @@ else:
     MPESA_C2B_URL = 'https://sandbox.safaricom.co.ke/mpesa/c2b/v1/registerurl'
     MPESA_B2C_URL = 'https://sandbox.safaricom.co.ke/mpesa/b2c/v1/paymentrequest'
     MPESA_B2B_URL = 'https://sandbox.safaricom.co.ke/mpesa/b2b/v1/paymentrequest'
+
+# Pesapal settings
+PESAPAL_ENVIRONMENT = _env('PESAPAL_ENVIRONMENT', 'production').lower()
+PESAPAL_CONSUMER_KEY = _env('PESAPAL_CONSUMER_KEY', '')
+PESAPAL_CONSUMER_SECRET = _env('PESAPAL_CONSUMER_SECRET', '')
+PESAPAL_IPN_ID = _env('PESAPAL_IPN_ID', '')
+PESAPAL_CALLBACK_URL = _env('PESAPAL_CALLBACK_URL', 'https://devsoko.onrender.com/api/pesapal/callback/')
+
+if PESAPAL_ENVIRONMENT == 'sandbox':
+    PESAPAL_AUTH_URL = _env('PESAPAL_AUTH_URL', 'https://cybqa.pesapal.com/pesapalv3/api/Auth/RequestToken')
+    PESAPAL_SUBMIT_ORDER_URL = _env('PESAPAL_SUBMIT_ORDER_URL', 'https://cybqa.pesapal.com/pesapalv3/api/Transactions/SubmitOrderRequest')
+    PESAPAL_TRANSACTION_STATUS_URL = _env('PESAPAL_TRANSACTION_STATUS_URL', 'https://cybqa.pesapal.com/pesapalv3/api/Transactions/GetTransactionStatus')
+    PESAPAL_REGISTER_IPN_URL = _env('PESAPAL_REGISTER_IPN_URL', 'https://cybqa.pesapal.com/pesapalv3/api/URLSetup/RegisterIPN')
+else:
+    PESAPAL_AUTH_URL = _env('PESAPAL_AUTH_URL', 'https://pay.pesapal.com/v3/api/Auth/RequestToken')
+    PESAPAL_SUBMIT_ORDER_URL = _env('PESAPAL_SUBMIT_ORDER_URL', 'https://pay.pesapal.com/v3/api/Transactions/SubmitOrderRequest')
+    PESAPAL_TRANSACTION_STATUS_URL = _env('PESAPAL_TRANSACTION_STATUS_URL', 'https://pay.pesapal.com/v3/api/Transactions/GetTransactionStatus')
+    PESAPAL_REGISTER_IPN_URL = _env('PESAPAL_REGISTER_IPN_URL', 'https://pay.pesapal.com/v3/api/URLSetup/RegisterIPN')
 
 # Firebase settings
 FIREBASE_PROJECT_ID = _env('FIREBASE_PROJECT_ID', 'devsoko-f7bbc')
