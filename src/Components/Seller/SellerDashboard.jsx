@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../supabaseClient';
 import DashboardSkeleton from '../Shared/DashboardSkeleton';
 import UploadForm from '../Project/UploadForm';
-import { getCurrentUser, getReputationLevel, getUserProfile } from '../../lib/supabaseMarketplace';
+import { createActivityLog, getCurrentUser, getReputationLevel, getUserProfile } from '../../lib/supabaseMarketplace';
 
 const navItems = [
   { id: 'overview', label: 'Overview' },
@@ -18,26 +18,95 @@ const navItems = [
   { id: 'settings', label: 'Settings' },
 ];
 
+const dcoinPackages = [
+  { id: 'starter', name: 'Starter', coins: 20, priceKes: 100 },
+  { id: 'builder', name: 'Builder', coins: 50, priceKes: 220 },
+  { id: 'creator', name: 'Creator', coins: 120, priceKes: 450 },
+  { id: 'studio', name: 'Studio', coins: 300, priceKes: 900 },
+];
+
+const defaultSellerSettings = {
+  emailNotifications: true,
+  orderAlerts: true,
+  marketingUpdates: false,
+  compactSidebar: false,
+  autoRefresh: false,
+};
+
+const readJsonStorage = (key, fallback) => {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return fallback;
+    return { ...fallback, ...JSON.parse(raw) };
+  } catch {
+    return fallback;
+  }
+};
+
+const writeJsonStorage = (key, value) => {
+  localStorage.setItem(key, JSON.stringify(value));
+};
+
 const SellerDashboard = () => {
   const [activeSection, setActiveSection] = useState('overview');
   const [projects, setProjects] = useState([]);
   const [sales, setSales] = useState([]);
   const [profile, setProfile] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
   const [wallet, setWallet] = useState({ balance: 0 });
   const [loading, setLoading] = useState(true);
   const [editingProject, setEditingProject] = useState(null);
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [savingSettings, setSavingSettings] = useState(false);
+  const [buyingPackageId, setBuyingPackageId] = useState('');
+  const [profileForm, setProfileForm] = useState({
+    fullName: '',
+    phone: '',
+    bio: '',
+    skills: '',
+  });
+  const [settingsForm, setSettingsForm] = useState(defaultSellerSettings);
+  const [pendingTopups, setPendingTopups] = useState([]);
   const navigate = useNavigate();
 
-  const fetchData = async () => {
+  const fetchData = async ({ silent = false } = {}) => {
     try {
+      if (!silent) {
+        setLoading(true);
+      }
+
       const user = await getCurrentUser();
       if (!user) {
         navigate('/login');
         return;
       }
 
+      setCurrentUser(user);
+
       const nextProfile = await getUserProfile(user.id);
       setProfile(nextProfile);
+
+      const profileStorageKey = `seller-profile-meta-${user.id}`;
+      const settingsStorageKey = `seller-settings-${user.id}`;
+      const pendingTopupsKey = `seller-pending-topups-${user.id}`;
+
+      const localProfileMeta = readJsonStorage(profileStorageKey, {
+        phone: '',
+        bio: '',
+        skills: '',
+      });
+
+      setProfileForm({
+        fullName: nextProfile?.full_name || user.email?.split('@')[0] || '',
+        phone: localProfileMeta.phone || '',
+        bio: localProfileMeta.bio || '',
+        skills: localProfileMeta.skills || '',
+      });
+
+      setSettingsForm(readJsonStorage(settingsStorageKey, defaultSellerSettings));
+      setPendingTopups(readJsonStorage(pendingTopupsKey, []));
 
       const [{ data: walletData }, { data: projectData }, { data: orderData }] = await Promise.all([
         supabase.from('wallets').select('*').eq('user_id', user.id).maybeSingle(),
@@ -50,6 +119,7 @@ const SellerDashboard = () => {
       setSales(orderData || []);
     } catch (error) {
       console.error('seller dashboard error', error);
+      setError('Unable to load seller dashboard data right now.');
     } finally {
       setLoading(false);
     }
@@ -58,6 +128,15 @@ const SellerDashboard = () => {
   useEffect(() => {
     fetchData();
   }, [navigate]);
+
+  useEffect(() => {
+    if (!currentUser || !settingsForm.autoRefresh) return;
+    const intervalId = setInterval(() => {
+      fetchData({ silent: true });
+    }, 60000);
+
+    return () => clearInterval(intervalId);
+  }, [currentUser, settingsForm.autoRefresh]);
 
   const stats = useMemo(() => {
     const totalEarnings = sales.reduce((sum, order) => sum + Number(order.amount || 0), 0);
@@ -78,14 +157,18 @@ const SellerDashboard = () => {
   }, [projects, sales, wallet]);
 
   const updateProjectStatus = async (projectId, status) => {
+    setError('');
     await supabase.from('projects').update({ status }).eq('id', projectId);
-    fetchData();
+    setMessage(`Project status updated to ${status}.`);
+    fetchData({ silent: true });
   };
 
   const deleteProject = async (projectId) => {
     if (!window.confirm('Delete this project?')) return;
+    setError('');
     await supabase.from('projects').delete().eq('id', projectId);
-    fetchData();
+    setMessage('Project deleted successfully.');
+    fetchData({ silent: true });
   };
 
   const saveProjectEdit = async (event) => {
@@ -98,7 +181,120 @@ const SellerDashboard = () => {
       category: editingProject.category,
     }).eq('id', editingProject.id);
     setEditingProject(null);
-    fetchData();
+    setMessage('Project updated successfully.');
+    fetchData({ silent: true });
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate('/login');
+  };
+
+  const handleProfileSave = async (event) => {
+    event.preventDefault();
+    if (!currentUser) return;
+
+    setSavingProfile(true);
+    setError('');
+    setMessage('');
+
+    try {
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({
+          full_name: profileForm.fullName,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', currentUser.id);
+
+      if (updateError) throw updateError;
+
+      writeJsonStorage(`seller-profile-meta-${currentUser.id}`, {
+        phone: profileForm.phone,
+        bio: profileForm.bio,
+        skills: profileForm.skills,
+      });
+
+      setProfile((prev) => ({
+        ...(prev || {}),
+        full_name: profileForm.fullName,
+      }));
+
+      await createActivityLog({
+        userId: currentUser.id,
+        action: 'seller_profile_updated',
+        details: 'Seller updated profile details',
+      });
+
+      setMessage('Profile updated successfully.');
+    } catch (saveError) {
+      console.error('profile save error', saveError);
+      setError('Failed to save profile updates. Please try again.');
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
+  const handleSettingsSave = async (event) => {
+    event.preventDefault();
+    if (!currentUser) return;
+
+    setSavingSettings(true);
+    setError('');
+    setMessage('');
+
+    try {
+      writeJsonStorage(`seller-settings-${currentUser.id}`, settingsForm);
+
+      await createActivityLog({
+        userId: currentUser.id,
+        action: 'seller_settings_updated',
+        details: JSON.stringify(settingsForm),
+      });
+
+      setMessage('Settings saved successfully.');
+    } catch (saveError) {
+      console.error('settings save error', saveError);
+      setError('Failed to save settings. Please try again.');
+    } finally {
+      setSavingSettings(false);
+    }
+  };
+
+  const handleBuyNow = async (pkg) => {
+    if (!currentUser) return;
+
+    setBuyingPackageId(pkg.id);
+    setError('');
+    setMessage('');
+
+    try {
+      const intent = {
+        packageId: pkg.id,
+        packageName: pkg.name,
+        coins: pkg.coins,
+        priceKes: pkg.priceKes,
+        status: 'pending-payment-gateway',
+        createdAt: new Date().toISOString(),
+      };
+
+      const nextTopups = [intent, ...pendingTopups].slice(0, 12);
+      setPendingTopups(nextTopups);
+      writeJsonStorage(`seller-pending-topups-${currentUser.id}`, nextTopups);
+
+      await createActivityLog({
+        userId: currentUser.id,
+        action: 'dcoin_purchase_intent_created',
+        details: `${pkg.name} (${pkg.coins} D for KES ${pkg.priceKes})`,
+      });
+
+      setMessage(`Purchase intent created for ${pkg.name}. Payment gateway integration will complete this top-up.`);
+    } catch (buyError) {
+      console.error('dcoin buy intent error', buyError);
+      setError('Could not create buy intent. Please try again.');
+    } finally {
+      setBuyingPackageId('');
+    }
   };
 
   if (loading) {
@@ -116,14 +312,29 @@ const SellerDashboard = () => {
           </div>
           <nav className="space-y-2">
             {navItems.map((item) => (
-              <button key={item.id} onClick={() => setActiveSection(item.id)} className={`w-full rounded-2xl px-4 py-3 text-left text-sm font-semibold transition ${activeSection === item.id ? 'bg-slate-900 text-white dark:bg-blue-500 dark:text-slate-950' : 'bg-slate-50 text-slate-700 hover:bg-slate-100 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700'}`}>
+              <button key={item.id} onClick={() => setActiveSection(item.id)} className={`w-full rounded-2xl px-4 py-3 text-left text-sm font-semibold transition ${activeSection === item.id ? 'bg-slate-900 text-white dark:bg-blue-500 dark:text-slate-950' : 'bg-slate-50 text-slate-700 hover:bg-slate-100 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700'} ${settingsForm.compactSidebar ? 'py-2 text-xs' : ''}`}>
                 {item.label}
               </button>
             ))}
           </nav>
+
+          <div className="mt-6 rounded-2xl bg-slate-100 p-4 dark:bg-slate-800">
+            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Quick wallet</p>
+            <p className="mt-2 text-2xl font-black text-slate-900 dark:text-slate-100">{stats.dcoinBalance} D</p>
+          </div>
+
+          <button onClick={handleLogout} className="mt-6 w-full rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-left text-sm font-semibold text-red-700 transition hover:bg-red-100 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300 dark:hover:bg-red-950/60">
+            Logout
+          </button>
         </aside>
 
         <main className="flex-1 space-y-6">
+          {(message || error) && (
+            <section className={`rounded-[1.5rem] border px-4 py-3 text-sm ${error ? 'border-red-200 bg-red-50 text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300' : 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300'}`}>
+              {error || message}
+            </section>
+          )}
+
           <section className="rounded-[2rem] border border-slate-200 bg-white/90 p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/90">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
               <div>
@@ -222,19 +433,48 @@ const SellerDashboard = () => {
           )}
 
           {activeSection === 'dcoins' && (
-            <div className="grid gap-4 md:grid-cols-2">
-              {[
-                { name: 'Starter', coins: 20, price: 'KES 100' },
-                { name: 'Builder', coins: 50, price: 'KES 220' },
-                { name: 'Creator', coins: 120, price: 'KES 450' },
-                { name: 'Studio', coins: 300, price: 'KES 900' },
-              ].map((pkg) => (
-                <div key={pkg.name} className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-                  <h3 className="text-xl font-black">{pkg.name}</h3>
-                  <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{pkg.coins} D-Coins</p>
-                  <p className="mt-4 text-2xl font-black text-blue-700">{pkg.price}</p>
-                </div>
-              ))}
+            <div className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-2">
+                {dcoinPackages.map((pkg) => (
+                  <div key={pkg.id} className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                    <h3 className="text-xl font-black">{pkg.name}</h3>
+                    <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{pkg.coins} D-Coins</p>
+                    <p className="mt-4 text-2xl font-black text-blue-700">KES {pkg.priceKes}</p>
+                    <button
+                      onClick={() => handleBuyNow(pkg)}
+                      disabled={buyingPackageId === pkg.id}
+                      className="mt-5 w-full rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60 dark:bg-blue-500 dark:text-slate-950 dark:hover:bg-blue-400"
+                    >
+                      {buyingPackageId === pkg.id ? 'Creating intent...' : 'Buy now'}
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                <h3 className="text-lg font-black">Pending top-up intents</h3>
+                <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">These requests are waiting for payment gateway integration before D-Coins are credited.</p>
+                {pendingTopups.length === 0 ? (
+                  <div className="mt-4 rounded-2xl border border-dashed border-slate-300 px-4 py-6 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">No pending intents yet.</div>
+                ) : (
+                  <div className="mt-4 space-y-3">
+                    {pendingTopups.map((intent, index) => (
+                      <div key={`${intent.packageId}-${intent.createdAt}-${index}`} className="rounded-2xl border border-slate-200 px-4 py-3 dark:border-slate-700">
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-bold text-slate-900 dark:text-slate-100">{intent.packageName} • {intent.coins} D</p>
+                            <p className="mt-1 text-xs text-slate-500">{new Date(intent.createdAt).toLocaleString()}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-sm font-black text-blue-700">KES {intent.priceKes}</p>
+                            <p className="text-xs uppercase tracking-[0.2em] text-amber-600">Pending</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -250,8 +490,81 @@ const SellerDashboard = () => {
           )}
 
           {activeSection === 'notifications' && <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">Notifications will appear here as soon as your activity starts flowing.</div>}
-          {activeSection === 'profile' && <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">Your public profile is synced with Supabase and can be expanded with more details later.</div>}
-          {activeSection === 'settings' && <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">Seller settings can be connected to Supabase preferences once your profile schema is expanded.</div>}
+
+          {activeSection === 'profile' && (
+            <form onSubmit={handleProfileSave} className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+              <h3 className="text-xl font-black">Profile</h3>
+              <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">Update your public seller details. Full name syncs to Supabase profile and the rest is saved for your dashboard profile view.</p>
+              <div className="mt-5 grid gap-4 md:grid-cols-2">
+                <input
+                  type="text"
+                  value={profileForm.fullName}
+                  onChange={(event) => setProfileForm((prev) => ({ ...prev, fullName: event.target.value }))}
+                  placeholder="Full name"
+                  className="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none transition focus:border-blue-400 dark:border-slate-700 dark:bg-slate-800"
+                />
+                <input
+                  type="text"
+                  value={profileForm.phone}
+                  onChange={(event) => setProfileForm((prev) => ({ ...prev, phone: event.target.value }))}
+                  placeholder="Phone number"
+                  className="w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none transition focus:border-blue-400 dark:border-slate-700 dark:bg-slate-800"
+                />
+              </div>
+              <textarea
+                rows="4"
+                value={profileForm.bio}
+                onChange={(event) => setProfileForm((prev) => ({ ...prev, bio: event.target.value }))}
+                placeholder="Short bio"
+                className="mt-4 w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none transition focus:border-blue-400 dark:border-slate-700 dark:bg-slate-800"
+              />
+              <input
+                type="text"
+                value={profileForm.skills}
+                onChange={(event) => setProfileForm((prev) => ({ ...prev, skills: event.target.value }))}
+                placeholder="Skills (comma separated)"
+                className="mt-4 w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none transition focus:border-blue-400 dark:border-slate-700 dark:bg-slate-800"
+              />
+              <div className="mt-6 flex justify-end">
+                <button type="submit" disabled={savingProfile} className="rounded-2xl bg-slate-900 px-5 py-3 text-sm font-bold text-white transition hover:bg-slate-800 disabled:opacity-60 dark:bg-blue-500 dark:text-slate-950">
+                  {savingProfile ? 'Saving profile...' : 'Save profile'}
+                </button>
+              </div>
+            </form>
+          )}
+
+          {activeSection === 'settings' && (
+            <form onSubmit={handleSettingsSave} className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+              <h3 className="text-xl font-black">Settings</h3>
+              <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">Configure seller dashboard behavior and notification preferences.</p>
+
+              <div className="mt-5 space-y-3">
+                {[
+                  { key: 'emailNotifications', label: 'Email notifications' },
+                  { key: 'orderAlerts', label: 'Order alerts' },
+                  { key: 'marketingUpdates', label: 'Marketing updates' },
+                  { key: 'compactSidebar', label: 'Compact sidebar mode' },
+                  { key: 'autoRefresh', label: 'Auto refresh dashboard every 60s' },
+                ].map((setting) => (
+                  <label key={setting.key} className="flex items-center justify-between rounded-2xl border border-slate-200 px-4 py-3 dark:border-slate-700">
+                    <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{setting.label}</span>
+                    <input
+                      type="checkbox"
+                      checked={Boolean(settingsForm[setting.key])}
+                      onChange={(event) => setSettingsForm((prev) => ({ ...prev, [setting.key]: event.target.checked }))}
+                      className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                    />
+                  </label>
+                ))}
+              </div>
+
+              <div className="mt-6 flex justify-end">
+                <button type="submit" disabled={savingSettings} className="rounded-2xl bg-slate-900 px-5 py-3 text-sm font-bold text-white transition hover:bg-slate-800 disabled:opacity-60 dark:bg-blue-500 dark:text-slate-950">
+                  {savingSettings ? 'Saving settings...' : 'Save settings'}
+                </button>
+              </div>
+            </form>
+          )}
         </main>
       </div>
 
