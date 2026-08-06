@@ -7,6 +7,7 @@ import requests
 
 from django.conf import settings
 from django.contrib.auth.models import User
+from django.core.cache import cache
 from django_ratelimit.decorators import ratelimit
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
@@ -31,6 +32,8 @@ PESAPAL_PAYMENT_OPTIONS = [
     {'code': 'visa', 'label': 'VisaCard'},
     {'code': 'mastercard', 'label': 'Mastercard'},
 ]
+
+PESAPAL_IPN_CACHE_KEY = 'pesapal_runtime_ipn_id'
 
 
 def _normalize_phone(phone_number):
@@ -102,6 +105,45 @@ def _pesapal_get_token():
         return None, data
 
     return token, data
+
+
+def _extract_ipn_id(data):
+    return _first_present(data, 'ipn_id', 'ipnId', 'IpnId', default='').strip()
+
+
+def _resolve_or_register_ipn_id(token, callback_url):
+    configured_ipn_id = (settings.PESAPAL_IPN_ID or '').strip()
+    if configured_ipn_id:
+        return configured_ipn_id, None
+
+    cached_ipn_id = cache.get(PESAPAL_IPN_CACHE_KEY, '')
+    cached_ipn_id = (cached_ipn_id or '').strip()
+    if cached_ipn_id:
+        return cached_ipn_id, None
+
+    headers = {
+        'Authorization': f'Bearer {token}',
+        'Content-Type': 'application/json',
+    }
+    payload = {
+        'url': callback_url,
+        'ipn_notification_type': 'POST',
+    }
+
+    response = requests.post(settings.PESAPAL_REGISTER_IPN_URL, json=payload, headers=headers, timeout=30)
+    data = _safe_json(response)
+    ipn_id = _extract_ipn_id(data)
+
+    if response.status_code >= 400 or not ipn_id:
+        return None, {
+            'detail': 'Failed to register Pesapal IPN ID',
+            'gateway_response': data,
+            'hint': 'Set PESAPAL_IPN_ID in backend env or allow IPN registration endpoint access',
+        }
+
+    # Keep runtime IPN ID available for future checkouts in this process.
+    cache.set(PESAPAL_IPN_CACHE_KEY, ipn_id, 60 * 60 * 24)
+    return ipn_id, None
 
 
 @api_view(['GET'])
@@ -181,7 +223,9 @@ def pesapal_submit_order(request):
     )
 
     callback_url = data.get('callback_url') or settings.PESAPAL_CALLBACK_URL
-    ipn_id = settings.PESAPAL_IPN_ID
+    ipn_id, ipn_error = _resolve_or_register_ipn_id(token, callback_url)
+    if ipn_error:
+        return Response(ipn_error, status=status.HTTP_502_BAD_GATEWAY)
 
     fallback_email = ''
     if auth_user:
@@ -211,6 +255,9 @@ def pesapal_submit_order(request):
     response = requests.post(settings.PESAPAL_SUBMIT_ORDER_URL, json=payload, headers=headers, timeout=30)
     response_data = _safe_json(response)
 
+    checkout_url = _first_present(response_data, 'redirect_url', 'redirectUrl')
+    order_tracking_id = _first_present(response_data, 'order_tracking_id', 'orderTrackingId', 'OrderTrackingId')
+
     transaction_user = auth_user
     if not transaction_user:
         transaction_user, _ = User.objects.get_or_create(
@@ -226,14 +273,14 @@ def pesapal_submit_order(request):
         amount=Decimal(str(data['amount'])),
         currency=data.get('currency', 'KES'),
         description=data['description'],
-        checkout_url=_first_present(response_data, 'redirect_url', 'redirectUrl'),
-        order_tracking_id=_first_present(response_data, 'order_tracking_id', 'orderTrackingId', 'OrderTrackingId'),
+        checkout_url=checkout_url,
+        order_tracking_id=order_tracking_id,
         request_payload=payload,
         response_payload=response_data,
         status='processing' if response.status_code < 400 else 'failed',
     )
 
-    if response.status_code >= 400:
+    if response.status_code >= 400 or not checkout_url:
         return Response(
             {
                 'detail': 'Pesapal order submission failed',
