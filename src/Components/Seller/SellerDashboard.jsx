@@ -37,7 +37,20 @@ const readJsonStorage = (key, fallback) => {
   try {
     const raw = localStorage.getItem(key);
     if (!raw) return fallback;
-    return { ...fallback, ...JSON.parse(raw) };
+    const parsed = JSON.parse(raw);
+
+    if (Array.isArray(fallback)) {
+      return Array.isArray(parsed) ? parsed : fallback;
+    }
+
+    if (fallback && typeof fallback === 'object') {
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        return { ...fallback, ...parsed };
+      }
+      return fallback;
+    }
+
+    return parsed ?? fallback;
   } catch {
     return fallback;
   }
@@ -155,6 +168,10 @@ const SellerDashboard = () => {
       reputation,
     };
   }, [projects, sales, wallet]);
+
+  const safePendingTopups = useMemo(() => {
+    return Array.isArray(pendingTopups) ? pendingTopups : [];
+  }, [pendingTopups]);
 
   const updateProjectStatus = async (projectId, status) => {
     setError('');
@@ -278,15 +295,19 @@ const SellerDashboard = () => {
         createdAt: new Date().toISOString(),
       };
 
-      const nextTopups = [intent, ...pendingTopups].slice(0, 12);
+      const nextTopups = [intent, ...safePendingTopups].slice(0, 12);
       setPendingTopups(nextTopups);
       writeJsonStorage(`seller-pending-topups-${currentUser.id}`, nextTopups);
 
-      await createActivityLog({
-        userId: currentUser.id,
-        action: 'dcoin_purchase_intent_created',
-        details: `${pkg.name} (${pkg.coins} D for KES ${pkg.priceKes})`,
-      });
+      try {
+        await createActivityLog({
+          userId: currentUser.id,
+          action: 'dcoin_purchase_intent_created',
+          details: `${pkg.name} (${pkg.coins} D for KES ${pkg.priceKes})`,
+        });
+      } catch (activityError) {
+        console.warn('activity log skipped for dcoin intent', activityError);
+      }
 
       setMessage(`Purchase intent created for ${pkg.name}. Payment gateway integration will complete this top-up.`);
     } catch (buyError) {
@@ -454,11 +475,11 @@ const SellerDashboard = () => {
               <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
                 <h3 className="text-lg font-black">Pending top-up intents</h3>
                 <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">These requests are waiting for payment gateway integration before D-Coins are credited.</p>
-                {pendingTopups.length === 0 ? (
+                {safePendingTopups.length === 0 ? (
                   <div className="mt-4 rounded-2xl border border-dashed border-slate-300 px-4 py-6 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">No pending intents yet.</div>
                 ) : (
                   <div className="mt-4 space-y-3">
-                    {pendingTopups.map((intent, index) => (
+                    {safePendingTopups.map((intent, index) => (
                       <div key={`${intent.packageId}-${intent.createdAt}-${index}`} className="rounded-2xl border border-slate-200 px-4 py-3 dark:border-slate-700">
                         <div className="flex items-center justify-between gap-3">
                           <div>
